@@ -1,0 +1,104 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        ((request.auth.token.email == 'businessplussmile0@gmail.com' || request.auth.token.email == 'jorisahoussi4@gmail.com') && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // Admins collection
+    match /admins/{adminId} {
+      allow read: if isSignedIn() && (request.auth.uid == adminId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Settings (Artist Profile)
+    match /settings/{settingId} {
+      allow read: if isValidId(settingId);
+      allow write: if isAdmin();
+    }
+
+    // Tracks collection (Public read, admin write, or play counter increment)
+    match /tracks/{trackId} {
+      allow read: if isValidId(trackId);
+      allow write: if isAdmin();
+      // Allow public play counter update
+      allow update: if isValidId(trackId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plays']) &&
+        request.resource.data.plays is number &&
+        request.resource.data.plays >= resource.data.plays;
+    }
+
+    // Products collection (Public read, admin write, or stock decrement on order)
+    match /products/{productId} {
+      allow read: if isValidId(productId);
+      allow write: if isAdmin();
+      // Allow stock update during purchase
+      allow update: if isValidId(productId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
+        request.resource.data.stock is number &&
+        request.resource.data.stock >= 0;
+    }
+
+    // Concerts collection (Public read, admin write, or ticket count update)
+    match /concerts/{concertId} {
+      allow read: if isValidId(concertId);
+      allow write: if isAdmin();
+      // Allow ticket count updates
+      allow update: if isValidId(concertId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ticketTiers', 'status']);
+    }
+
+    // Announcements collection (Public read, admin write, or like count increment)
+    match /announcements/{announcementId} {
+      allow read: if isValidId(announcementId);
+      allow write: if isAdmin();
+      // Allow public like increment
+      allow update: if isValidId(announcementId) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) &&
+        request.resource.data.likes is number;
+    }
+
+    // Newsletter Subscribers (Public create with validation, admin read/write)
+    match /subscribers/{subscriberId} {
+      allow create: if isValidId(subscriberId) &&
+        request.resource.data.email is string &&
+        request.resource.data.email.size() > 3 &&
+        request.resource.data.email.size() <= 255;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Ticket Orders (Public create with validation, admin read/write)
+    match /ticketOrders/{orderId} {
+      allow create: if isValidId(orderId) &&
+        request.resource.data.buyerEmail is string &&
+        request.resource.data.totalPrice is number;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Shop Orders (Public create with validation, admin read/write)
+    match /shopOrders/{orderId} {
+      allow create: if isValidId(orderId) &&
+        request.resource.data.customerEmail is string &&
+        request.resource.data.total is number;
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

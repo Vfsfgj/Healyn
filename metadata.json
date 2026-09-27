@@ -1,0 +1,8 @@
+{
+  "name": "Remix healing  — Artiste \u0026 Musique Officiel (réserve)",
+  "description": "Plateforme officielle de l\u0027artiste AURÈLE : extraits audio HD en streaming, boutique de créations exclusives, billetterie des concerts, actualités et espace fan club.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

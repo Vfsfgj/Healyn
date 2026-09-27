@@ -1,0 +1,201 @@
+{
+  "entities": {
+    "Track": {
+      "title": "Track",
+      "description": "Morceau ou extrait musical masterisé",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "duration": { "type": "string", "maxLength": 50 },
+        "durationSec": { "type": "number" },
+        "bpm": { "type": "number" },
+        "key": { "type": "string", "maxLength": 50 },
+        "releaseDate": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "maxLength": 50 },
+        "genre": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 1000 },
+        "preset": { "type": "string", "maxLength": 50 },
+        "audioUrl": { "type": "string", "maxLength": 2048 },
+        "audioFileName": { "type": "string", "maxLength": 255 },
+        "coverUrl": { "type": "string", "maxLength": 2048 },
+        "plays": { "type": "number" },
+        "lyrics": { "type": "array" }
+      },
+      "required": ["id", "title", "durationSec", "status"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Article de la boutique officielle",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "category": { "type": "string", "maxLength": 100 },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "maxStock": { "type": "number" },
+        "isLimitedEdition": { "type": "boolean" },
+        "description": { "type": "string", "maxLength": 2000 },
+        "details": { "type": "array" },
+        "imageUrl": { "type": "string", "maxLength": 2048 },
+        "variants": { "type": "object" }
+      },
+      "required": ["id", "title", "price", "stock"]
+    },
+    "Concert": {
+      "title": "Concert",
+      "description": "Date de concert ou événement live",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 50 },
+        "formattedDate": { "type": "string", "maxLength": 100 },
+        "city": { "type": "string", "maxLength": 100 },
+        "venue": { "type": "string", "maxLength": 200 },
+        "country": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "maxLength": 50 },
+        "doorsOpen": { "type": "string", "maxLength": 50 },
+        "ticketTiers": { "type": "array" },
+        "totalCapacity": { "type": "number" }
+      },
+      "required": ["id", "date", "city", "venue", "status"]
+    },
+    "Announcement": {
+      "title": "Announcement",
+      "description": "Publication ou actualité officielle",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 250 },
+        "summary": { "type": "string", "maxLength": 500 },
+        "content": { "type": "string", "maxLength": 10000 },
+        "category": { "type": "string", "maxLength": 100 },
+        "date": { "type": "string", "maxLength": 50 },
+        "readTime": { "type": "string", "maxLength": 50 },
+        "imageUrl": { "type": "string", "maxLength": 2048 },
+        "likes": { "type": "number" },
+        "pinned": { "type": "boolean" }
+      },
+      "required": ["id", "title", "content", "category"]
+    },
+    "ArtistProfile": {
+      "title": "ArtistProfile",
+      "description": "Informations et profil général de l'artiste",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100 },
+        "stageName": { "type": "string", "maxLength": 100 },
+        "tagline": { "type": "string", "maxLength": 250 },
+        "bio": { "type": "string", "maxLength": 5000 },
+        "statement": { "type": "string", "maxLength": 2000 },
+        "city": { "type": "string", "maxLength": 100 },
+        "heroImage": { "type": "string", "maxLength": 2048 },
+        "latestRelease": { "type": "object" },
+        "socials": { "type": "object" }
+      },
+      "required": ["name", "stageName"]
+    },
+    "Subscriber": {
+      "title": "Subscriber",
+      "description": "Abonné à la newsletter Le Cercle",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 255 },
+        "subscribedAt": { "type": "string", "maxLength": 100 },
+        "preferences": { "type": "array" }
+      },
+      "required": ["email", "subscribedAt"]
+    },
+    "TicketOrder": {
+      "title": "TicketOrder",
+      "description": "Commande de billet de concert",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "concertId": { "type": "string", "maxLength": 128 },
+        "concertCity": { "type": "string", "maxLength": 100 },
+        "venue": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 50 },
+        "tierName": { "type": "string", "maxLength": 100 },
+        "quantity": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "totalPrice": { "type": "number" },
+        "buyerName": { "type": "string", "maxLength": 150 },
+        "buyerEmail": { "type": "string", "maxLength": 255 },
+        "qrCodeData": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["concertId", "quantity", "buyerEmail", "totalPrice"]
+    },
+    "ShopOrder": {
+      "title": "ShopOrder",
+      "description": "Commande d'articles dans la boutique",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "orderNumber": { "type": "string", "maxLength": 100 },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "customerName": { "type": "string", "maxLength": 150 },
+        "customerEmail": { "type": "string", "maxLength": 255 },
+        "address": { "type": "string", "maxLength": 500 },
+        "city": { "type": "string", "maxLength": 100 },
+        "postalCode": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "maxLength": 50 }
+      },
+      "required": ["orderNumber", "total", "customerEmail", "status"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Administrateur autorisé du système",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 255 },
+        "role": { "type": "string", "maxLength": 50 },
+        "createdAt": { "type": "string", "maxLength": 100 }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/tracks/{trackId}": {
+      "schema": "Track",
+      "description": "Collection des morceaux musicaux"
+    },
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection des produits de la boutique"
+    },
+    "/concerts/{concertId}": {
+      "schema": "Concert",
+      "description": "Collection des dates de tournée et concerts"
+    },
+    "/announcements/{announcementId}": {
+      "schema": "Announcement",
+      "description": "Collection des actualités et communiqués"
+    },
+    "/settings/{settingId}": {
+      "schema": "ArtistProfile",
+      "description": "Paramètres et profil de l'artiste"
+    },
+    "/subscribers/{subscriberId}": {
+      "schema": "Subscriber",
+      "description": "Abonnés au Cercle"
+    },
+    "/ticketOrders/{orderId}": {
+      "schema": "TicketOrder",
+      "description": "Commandes de billets"
+    },
+    "/shopOrders/{orderId}": {
+      "schema": "ShopOrder",
+      "description": "Commandes de la boutique"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Liste des administrateurs autorisés"
+    }
+  }
+}
