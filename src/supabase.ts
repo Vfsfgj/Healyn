@@ -138,7 +138,16 @@ export async function fetchAllSupabaseData() {
         description: r.description,
         details: r.details || [],
         imageUrl: r.image_url,
-        variants: r.variants || []
+        variants: (r.variants && typeof r.variants === 'object' && !Array.isArray(r.variants) && Array.isArray(r.variants.options) && r.variants.options.length > 0)
+          ? { type: r.variants.type || 'Format', options: r.variants.options }
+          : (typeof r.variants === 'string' ? (() => {
+              try {
+                const parsed = JSON.parse(r.variants);
+                return (parsed && Array.isArray(parsed.options) && parsed.options.length > 0) ? { type: parsed.type || 'Format', options: parsed.options } : undefined;
+              } catch {
+                return undefined;
+              }
+            })() : undefined)
       }));
     }
 
@@ -255,7 +264,7 @@ export async function upsertSupabaseProduct(product: Product) {
       description: product.description,
       details: product.details || [],
       image_url: product.imageUrl,
-      variants: product.variants || []
+      variants: product.variants || null
     });
   } catch (err) {
     console.warn("Supabase upsertProduct error:", err);

@@ -22,6 +22,8 @@ export const MusicSection: React.FC = () => {
     activeTrack,
     isPlaying,
     playTrack,
+    selectTrack,
+    stopAudio,
     togglePlayPause,
     toggleFavoriteTrack,
     showToast,
@@ -135,11 +137,12 @@ export const MusicSection: React.FC = () => {
                 key={track.id}
                 onClick={() => {
                   if (isCurrentTrack) {
-                    if (!isPlaying) {
-                      togglePlayPause();
-                    }
+                    // Already current track: keep state
                   } else {
-                    playTrack(track, true);
+                    if (isPlaying) {
+                      stopAudio();
+                    }
+                    selectTrack(track);
                   }
                   setIsImmersiveModalOpen(true);
                 }}
@@ -194,9 +197,12 @@ export const MusicSection: React.FC = () => {
                         onClick={(e) => {
                           e.stopPropagation();
                           if (isCurrentTrack) {
-                            togglePlayPause();
+                            // Already current track: keep state
                           } else {
-                            playTrack(track);
+                            if (isPlaying) {
+                              stopAudio();
+                            }
+                            selectTrack(track);
                           }
                           setIsImmersiveModalOpen(true);
                         }}

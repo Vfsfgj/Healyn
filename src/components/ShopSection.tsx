@@ -49,7 +49,7 @@ export const ShopSection: React.FC = () => {
     setSelectedProductForModal(product);
     setQuantity(1);
     setAddedToast(false);
-    if (product.variants && product.variants.options.length > 0) {
+    if (product.variants && Array.isArray(product.variants.options) && product.variants.options.length > 0) {
       setSelectedVariant(product.variants.options[0]);
     } else {
       setSelectedVariant('');
@@ -185,7 +185,9 @@ export const ShopSection: React.FC = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          const variant = product.variants?.options[0];
+                          const variant = (product.variants && Array.isArray(product.variants.options) && product.variants.options.length > 0)
+                            ? product.variants.options[0]
+                            : undefined;
                           addToCart(product, variant, 1);
                         }}
                         disabled={!hasStock}
@@ -289,10 +291,10 @@ export const ShopSection: React.FC = () => {
                   </p>
 
                   {/* Variant Selector */}
-                  {selectedProductForModal.variants && (
+                  {selectedProductForModal.variants && Array.isArray(selectedProductForModal.variants.options) && selectedProductForModal.variants.options.length > 0 && (
                     <div className="space-y-2.5 pt-2">
                       <label className="text-xs font-bold text-neutral-900 uppercase font-mono-code block">
-                        {selectedProductForModal.variants.type} : <span className="text-neutral-500 font-normal">{selectedVariant}</span>
+                        {selectedProductForModal.variants.type || 'Format'} : <span className="text-neutral-500 font-normal">{selectedVariant}</span>
                       </label>
                       <div className="flex flex-wrap gap-2">
                         {selectedProductForModal.variants.options.map(opt => (

@@ -102,6 +102,7 @@ interface ArtistContextType {
   isPlaying: boolean;
   audioVolume: number;
   playTrack: (track: Track, forceRestart?: boolean) => void;
+  selectTrack: (track: Track) => void;
   togglePlayPause: () => void;
   stopAudio: () => void;
   setAudioVolume: (vol: number) => void;
@@ -577,6 +578,12 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setIsPlaying(true);
     audioEngine.play(track.preset, track.audioUrl, durSec, forceRestart || isDifferentTrack);
     showToast(`Lecture en HD : ${track.title} (${track.status})`);
+  };
+
+  const selectTrack = (track: Track) => {
+    const durSec = track.durationSec || parseDurationToSec(track.duration);
+    const sanitizedTrack = { ...track, durationSec: durSec };
+    setActiveTrack(sanitizedTrack);
   };
 
   const togglePlayPause = () => {
@@ -1095,6 +1102,7 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         isPlaying,
         audioVolume,
         playTrack,
+        selectTrack,
         togglePlayPause,
         stopAudio,
         setAudioVolume,

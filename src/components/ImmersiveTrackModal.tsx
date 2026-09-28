@@ -528,6 +528,16 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
     }
   }, [activeLyricIndex, isOpen]);
 
+  // Prevent background page from scrolling when modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
+
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -600,7 +610,7 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
   const formattedTotalTime = `${String(totalMins).padStart(2, '0')}:${String(totalSecsRem).padStart(2, '0')}`;
 
   return (
-    <div className="fixed inset-0 z-50 bg-white/98 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-8 overflow-y-auto animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 bg-white/98 backdrop-blur-xl flex flex-col justify-between p-4 sm:p-8 overflow-y-auto overscroll-contain animate-in fade-in duration-300">
       
       {/* Top Navigation Bar */}
       <div className="max-w-6xl mx-auto w-full flex items-center justify-between pb-2.5 sm:pb-4 border-b border-neutral-200 gap-2">
@@ -622,10 +632,16 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
       </div>
 
       {/* Center 3D Scene + Lyrics Area (On clean white background) */}
-      <div className="max-w-6xl mx-auto w-full my-auto py-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+      <div className={`max-w-6xl mx-auto w-full my-auto py-6 items-center ${
+        lyricsList.length > 0
+          ? 'grid grid-cols-1 lg:grid-cols-12 gap-8'
+          : 'flex flex-col items-center justify-center'
+      }`}>
         
-        {/* Left: 3D Point Cloud Canvas shifting left */}
-        <div className="lg:col-span-5 flex flex-col items-center lg:items-start justify-center">
+        {/* 3D Point Cloud Canvas */}
+        <div className={`flex flex-col items-center justify-center ${
+          lyricsList.length > 0 ? 'lg:col-span-5 lg:items-start' : 'w-full max-w-lg items-center'
+        }`}>
           <div className="cursor-grab active:cursor-grabbing relative" title="Glisser pour faire pivoter le Nuage 3D">
             <canvas
               ref={canvasRef}
@@ -650,19 +666,19 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
           </div>
         </div>
 
-        {/* Right: Synchronized Live Lyrics directly on the same clean white background */}
-        <div className="lg:col-span-7 flex flex-col justify-center space-y-3">
-          
-          <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2">
-            <span className="text-[10px] font-mono-code uppercase tracking-widest text-neutral-800 font-bold">
-              PAROLES EN DIRECT
-            </span>
-            <span className="text-[10px] font-mono-code text-neutral-500">
-              {currentTrack.title}
-            </span>
-          </div>
+        {/* Right: Synchronized Live Lyrics directly on the same clean white background (Only rendered if lyrics exist) */}
+        {lyricsList.length > 0 && (
+          <div className="lg:col-span-7 flex flex-col justify-center space-y-3 w-full">
+            
+            <div className="flex items-center justify-between border-b border-neutral-200/80 pb-2">
+              <span className="text-[10px] font-mono-code uppercase tracking-widest text-neutral-800 font-bold">
+                PAROLES EN DIRECT
+              </span>
+              <span className="text-[10px] font-mono-code text-neutral-500">
+                {currentTrack.title}
+              </span>
+            </div>
 
-          {lyricsList.length > 0 ? (
             <div className="relative overflow-hidden">
               <div
                 ref={lyricsContainerRef}
@@ -698,13 +714,9 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
                 })}
               </div>
             </div>
-          ) : (
-            <div className="py-8 text-center text-neutral-400 text-xs font-mono-code italic">
-              Paroles instrumentales en cours de synchronisation...
-            </div>
-          )}
 
-        </div>
+          </div>
+        )}
 
       </div>
 

@@ -648,9 +648,9 @@ export const AudioPlayer: React.FC = () => {
       {/* Dynamic 3D Scene + Lyrics Split Area */}
       <div className="min-h-[220px] sm:min-h-[250px] flex flex-col lg:flex-row items-center justify-between gap-4 transition-all duration-700 ease-in-out px-2">
         
-        {/* Left Column: 3D Point Cloud Canvas (Slides left smoothly when music plays) */}
+        {/* Left Column: 3D Point Cloud Canvas (Slides left smoothly when music plays AND lyrics exist) */}
         <div className={`transition-all duration-700 ease-in-out flex flex-col items-center justify-center shrink-0 ${
-          isPlaying ? 'lg:w-5/12 lg:items-start' : 'w-full lg:w-full items-center'
+          isPlaying && lyricsList.length > 0 ? 'lg:w-5/12 lg:items-start' : 'w-full lg:w-full items-center'
         }`}>
           <div className="cursor-grab active:cursor-grabbing relative group" title="Toucher / Glisser pour faire pivoter le Nuage 3D">
             <canvas
@@ -664,13 +664,13 @@ export const AudioPlayer: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Synchronized Song Lyrics Floating directly on the white background */}
-        <div className={`transition-all duration-700 ease-in-out w-full ${
-          isPlaying
-            ? 'lg:w-7/12 opacity-100 translate-x-0 translate-y-0 max-h-[260px]'
-            : 'lg:w-0 opacity-0 translate-x-0 lg:translate-x-12 translate-y-8 lg:translate-y-0 max-h-0 overflow-hidden pointer-events-none'
-        }`}>
-          {lyricsList.length > 0 ? (
+        {/* Right Column: Synchronized Song Lyrics Floating directly on the white background (Only rendered if lyrics exist) */}
+        {lyricsList.length > 0 && (
+          <div className={`transition-all duration-700 ease-in-out w-full ${
+            isPlaying
+              ? 'lg:w-7/12 opacity-100 translate-x-0 translate-y-0 max-h-[260px]'
+              : 'lg:w-0 opacity-0 translate-x-0 lg:translate-x-12 translate-y-8 lg:translate-y-0 max-h-0 overflow-hidden pointer-events-none'
+          }`}>
             <div className="space-y-3 py-1">
               
               {/* Minimalist Floating Header */}
@@ -721,12 +721,8 @@ export const AudioPlayer: React.FC = () => {
               </div>
 
             </div>
-          ) : (
-            <div className="py-4 text-center text-neutral-400 text-xs font-mono-code italic">
-              Paroles instrumentales en cours de synchronisation...
-            </div>
-          )}
-        </div>
+          </div>
+        )}
 
       </div>
 
