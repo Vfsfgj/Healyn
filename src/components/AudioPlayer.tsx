@@ -42,7 +42,8 @@ export const AudioPlayer: React.FC = () => {
     showToast
   } = useArtist();
 
-  const currentTrack = activeTrack || tracks[0];
+  const currentTrack = activeTrack || tracks[0] || null;
+  const lyricsList = Array.isArray(currentTrack?.lyrics) ? currentTrack.lyrics : [];
   const [progress, setProgress] = useState<number>(0);
   const [currentTimeSec, setCurrentTimeSec] = useState<number>(0);
   const [totalDurationSec, setTotalDurationSec] = useState<number>(() => {
@@ -532,17 +533,17 @@ export const AudioPlayer: React.FC = () => {
 
   // Active Lyric calculation based on real current playback seconds
   const activeLyricIndex = useMemo(() => {
-    if (!currentTrack?.lyrics || currentTrack.lyrics.length === 0) return -1;
+    if (!lyricsList || lyricsList.length === 0) return -1;
     let activeIdx = 0;
-    for (let i = 0; i < currentTrack.lyrics.length; i++) {
-      if (currentTimeSec >= currentTrack.lyrics[i].timeSec) {
+    for (let i = 0; i < lyricsList.length; i++) {
+      if (currentTimeSec >= lyricsList[i].timeSec) {
         activeIdx = i;
       } else {
         break;
       }
     }
     return activeIdx;
-  }, [currentTrack?.lyrics, currentTimeSec]);
+  }, [lyricsList, currentTimeSec]);
 
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -562,12 +563,14 @@ export const AudioPlayer: React.FC = () => {
   }, [activeLyricIndex]);
 
   const handleNext = () => {
+    if (!currentTrack || tracks.length === 0) return;
     const currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
     const nextIndex = (currentIndex + 1) % tracks.length;
     playTrack(tracks[nextIndex]);
   };
 
   const handlePrev = () => {
+    if (!currentTrack || tracks.length === 0) return;
     const currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
     const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length;
     playTrack(tracks[prevIndex]);
@@ -584,6 +587,7 @@ export const AudioPlayer: React.FC = () => {
   };
 
   const handleShare = () => {
+    if (!currentTrack) return;
     const url = `${window.location.origin}#musique-${currentTrack.id}`;
     if (navigator.share) {
       navigator.share({
@@ -630,6 +634,14 @@ export const AudioPlayer: React.FC = () => {
   const totalSecsRem = totalSecsRounded % 60;
   const formattedTotalTime = `${String(totalMins).padStart(2, '0')}:${String(totalSecsRem).padStart(2, '0')}`;
 
+  if (!currentTrack) {
+    return (
+      <div className="relative mb-10 p-6 bg-neutral-100 rounded-xl text-center text-xs font-mono-code text-neutral-500">
+        Chargement de la discographie...
+      </div>
+    );
+  }
+
   return (
     <div className="relative mb-10 sm:mb-12 space-y-3">
       
@@ -658,7 +670,7 @@ export const AudioPlayer: React.FC = () => {
             ? 'lg:w-7/12 opacity-100 translate-x-0 translate-y-0 max-h-[260px]'
             : 'lg:w-0 opacity-0 translate-x-0 lg:translate-x-12 translate-y-8 lg:translate-y-0 max-h-0 overflow-hidden pointer-events-none'
         }`}>
-          {currentTrack.lyrics && currentTrack.lyrics.length > 0 ? (
+          {lyricsList.length > 0 ? (
             <div className="space-y-3 py-1">
               
               {/* Minimalist Floating Header */}
@@ -677,7 +689,7 @@ export const AudioPlayer: React.FC = () => {
                   ref={lyricsContainerRef}
                   className="space-y-2 max-h-[195px] overflow-y-auto pr-1.5 scrollbar-none py-2 scroll-smooth [mask-image:linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]"
                 >
-                  {currentTrack.lyrics.map((line, idx) => {
+                  {lyricsList.map((line, idx) => {
                     const isActive = idx === activeLyricIndex;
                     const isPast = idx < activeLyricIndex;
 

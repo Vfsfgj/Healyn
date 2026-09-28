@@ -229,7 +229,18 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
     return loaded;
   });
-  const [tracks, setTracks] = useState<Track[]>(() => loadFromStorage(STORAGE_KEYS.TRACKS, INITIAL_TRACKS));
+  const [tracks, setTracks] = useState<Track[]>(() => {
+    const loaded = loadFromStorage(STORAGE_KEYS.TRACKS, INITIAL_TRACKS);
+    const demoIds = new Set(['track-1', 'track-2', 'track-3', 'track-4', 'track-5']);
+    const demoTitles = new Set([
+      "L'Onde Blanche (432Hz)",
+      "Solstice Intérieur",
+      "Résonance & Silence IV",
+      "Respiration Nocture",
+      "Fragments d'Aube"
+    ]);
+    return (loaded || []).filter(t => !demoIds.has(t.id) && !demoTitles.has(t.title));
+  });
   const [products, setProducts] = useState<Product[]>(() => loadFromStorage(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS));
   const [concerts, setConcerts] = useState<Concert[]>(() => loadFromStorage(STORAGE_KEYS.CONCERTS, INITIAL_CONCERTS));
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => loadFromStorage(STORAGE_KEYS.ANNOUNCEMENTS, INITIAL_ANNOUNCEMENTS));
@@ -239,7 +250,7 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [shopOrders, setShopOrders] = useState<ShopOrder[]>(() => loadFromStorage(STORAGE_KEYS.ORDERS_SHOP, []));
 
   // Audio Playback
-  const [activeTrack, setActiveTrack] = useState<Track | null>(() => tracks[0] || null);
+  const [activeTrack, setActiveTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [audioVolume, setAudioVolumeState] = useState<number>(0.8);
 
@@ -461,8 +472,17 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const loadData = () => {
       fetchAllSupabaseData().then((res) => {
         if (res) {
-          if (res.tracks && res.tracks.length > 0) {
-            setTracks(res.tracks);
+          if (res.tracks) {
+            const demoIds = new Set(['track-1', 'track-2', 'track-3', 'track-4', 'track-5']);
+            const demoTitles = new Set([
+              "L'Onde Blanche (432Hz)",
+              "Solstice Intérieur",
+              "Résonance & Silence IV",
+              "Respiration Nocture",
+              "Fragments d'Aube"
+            ]);
+            const filteredTracks = res.tracks.filter(t => !demoIds.has(t.id) && !demoTitles.has(t.title));
+            setTracks(filteredTracks);
           }
           if (res.products && res.products.length > 0) {
             setProducts(res.products);
@@ -532,6 +552,21 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => { saveToStorage(STORAGE_KEYS.CART, cart); }, [cart]);
   useEffect(() => { saveToStorage(STORAGE_KEYS.ORDERS_SHOP, shopOrders); }, [shopOrders]);
   useEffect(() => { saveToStorage(STORAGE_KEYS.ORDERS_TICKETS, ticketOrders); }, [ticketOrders]);
+
+  useEffect(() => {
+    if (activeTrack) {
+      const exists = tracks.some(t => t.id === activeTrack.id);
+      if (!exists) {
+        setActiveTrack(tracks[0] || null);
+        if (tracks.length === 0) {
+          audioEngine.stop();
+          setIsPlaying(false);
+        }
+      }
+    } else if (tracks.length > 0) {
+      setActiveTrack(tracks[0]);
+    }
+  }, [tracks, activeTrack]);
 
   // Audio Controls
   const playTrack = (track: Track, forceRestart: boolean = false) => {

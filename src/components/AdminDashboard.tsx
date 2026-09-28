@@ -41,7 +41,7 @@ import {
 } from 'lucide-react';
 import { AudioPreset, TrackStatus } from '../types';
 import { compressImageFile } from '../utils/imageCompressor';
-import { compressAudioFile } from '../utils/audioCompressor';
+import { compressAudioFile, getAudioDurationFromFile } from '../utils/audioCompressor';
 import { LyricsTranscriberModal } from './LyricsTranscriberModal';
 import { StudioSelect } from './StudioSelect';
 import { SupabasePanel } from './SupabasePanel';
@@ -180,19 +180,10 @@ export const AdminDashboard: React.FC = () => {
       showToast("Publication sur Supabase Storage en cours...");
       
       try {
-        // Calculate audio duration
-        const objectUrl = URL.createObjectURL(file);
-        const tempAudio = new Audio(objectUrl);
-        tempAudio.onloadedmetadata = () => {
-          if (tempAudio.duration && !isNaN(tempAudio.duration)) {
-            const totalSecs = Math.round(tempAudio.duration);
-            const mins = Math.floor(totalSecs / 60);
-            const secs = totalSecs % 60;
-            const formatted = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            setNewTrackDuration(formatted);
-            setNewTrackDurationSec(totalSecs);
-          }
-        };
+        // Pre-calculate exact audio duration safely
+        const durInfo = await getAudioDurationFromFile(file);
+        setNewTrackDuration(durInfo.durationStr);
+        setNewTrackDurationSec(durInfo.durationSec);
 
         // Upload to Supabase Storage
         const uploadRes = await uploadTrackAudio(file, `track-${Date.now()}`, (pct) => {

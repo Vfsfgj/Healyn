@@ -121,7 +121,7 @@ export async function fetchAllSupabaseData() {
         audioUrl: r.audio_url,
         audioFileName: r.audio_file_name,
         plays: r.plays || 0,
-        lyrics: r.lyrics || [],
+        lyrics: typeof r.lyrics === 'string' ? (() => { try { return JSON.parse(r.lyrics); } catch { return []; } })() : (Array.isArray(r.lyrics) ? r.lyrics : []),
         isFavorite: r.is_favorite || false
       }));
     }

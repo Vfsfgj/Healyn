@@ -125,7 +125,8 @@ export const MusicSection: React.FC = () => {
 
         {/* Tracklist Table / Cards (Spotify-inspired Layout) */}
         <div className="space-y-3">
-          {filteredTracks.map((track, index) => {
+          {filteredTracks.length > 0 ? (
+            filteredTracks.map((track, index) => {
             const isCurrentTrack = activeTrack?.id === track.id;
             const isTrackPlaying = isCurrentTrack && isPlaying;
 
@@ -277,7 +278,14 @@ export const MusicSection: React.FC = () => {
                 )}
               </div>
             );
-          })}
+          })
+          ) : (
+            <div className="py-12 px-6 bg-white rounded-2xl text-center space-y-2 border border-neutral-100">
+              <Disc3 className="w-8 h-8 text-neutral-300 mx-auto" />
+              <p className="text-sm font-semibold text-neutral-800">Aucun morceau disponible pour le moment</p>
+              <p className="text-xs text-neutral-500 font-mono-code">Ajoutez vos propres créations audio depuis votre Espace Admin.</p>
+            </div>
+          )}
         </div>
 
         {/* Full-Screen Immersive Track View Modal */}

@@ -52,7 +52,8 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
     setCurrentPage
   } = useArtist();
 
-  const currentTrack = activeTrack || tracks[0];
+  const currentTrack = activeTrack || tracks[0] || null;
+  const lyricsList = useMemo(() => Array.isArray(currentTrack?.lyrics) ? currentTrack.lyrics : [], [currentTrack?.lyrics]);
 
   const [progress, setProgress] = useState(0);
   const [currentTimeSec, setCurrentTimeSec] = useState<number>(0);
@@ -498,17 +499,17 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
 
   // Active Lyric calculation based on real current playback seconds
   const activeLyricIndex = useMemo(() => {
-    if (!currentTrack?.lyrics || currentTrack.lyrics.length === 0) return -1;
+    if (!lyricsList || lyricsList.length === 0) return -1;
     let activeIdx = 0;
-    for (let i = 0; i < currentTrack.lyrics.length; i++) {
-      if (currentTimeSec >= currentTrack.lyrics[i].timeSec) {
+    for (let i = 0; i < lyricsList.length; i++) {
+      if (currentTimeSec >= lyricsList[i].timeSec) {
         activeIdx = i;
       } else {
         break;
       }
     }
     return activeIdx;
-  }, [currentTrack?.lyrics, currentTimeSec]);
+  }, [lyricsList, currentTimeSec]);
 
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
 
@@ -556,6 +557,7 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
   };
 
   const handleShare = () => {
+    if (!currentTrack) return;
     const url = `${window.location.origin}#musique-${currentTrack.id}`;
     if (navigator.share) {
       navigator.share({
@@ -572,18 +574,20 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
   };
 
   const handleNext = () => {
+    if (!currentTrack || tracks.length === 0) return;
     const currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
     const nextTrack = tracks[(currentIndex + 1) % tracks.length];
     playTrack(nextTrack);
   };
 
   const handlePrev = () => {
+    if (!currentTrack || tracks.length === 0) return;
     const currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
     const prevTrack = tracks[(currentIndex - 1 + tracks.length) % tracks.length];
     playTrack(prevTrack);
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !currentTrack) return null;
 
   const currentSeconds = Math.floor(currentTimeSec);
   const minutes = Math.floor(currentSeconds / 60);
@@ -658,13 +662,13 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
             </span>
           </div>
 
-          {currentTrack.lyrics && currentTrack.lyrics.length > 0 ? (
+          {lyricsList.length > 0 ? (
             <div className="relative overflow-hidden">
               <div
                 ref={lyricsContainerRef}
                 className="space-y-2.5 max-h-[260px] overflow-y-auto pr-2 scrollbar-none py-2 scroll-smooth [mask-image:linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]"
               >
-                {currentTrack.lyrics.map((line, idx) => {
+                {lyricsList.map((line, idx) => {
                   const isActive = idx === activeLyricIndex;
                   const isPast = idx < activeLyricIndex;
 

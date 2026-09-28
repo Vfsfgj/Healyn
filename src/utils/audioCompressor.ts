@@ -4,6 +4,49 @@
  * using Web Audio API OfflineAudioContext for lightweight storage & crisp playback.
  */
 
+export function getAudioDurationFromFile(file: File): Promise<{ durationStr: string; durationSec: number }> {
+  return new Promise((resolve) => {
+    let objectUrl = '';
+    try {
+      objectUrl = URL.createObjectURL(file);
+    } catch {
+      resolve({ durationStr: '03:00', durationSec: 180 });
+      return;
+    }
+
+    const audio = new Audio();
+    audio.preload = 'metadata';
+
+    const cleanup = () => {
+      try {
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      } catch {}
+    };
+
+    audio.onloadedmetadata = () => {
+      cleanup();
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration) && audio.duration > 0) {
+        const totalSecs = Math.round(audio.duration);
+        const mins = Math.floor(totalSecs / 60);
+        const secs = totalSecs % 60;
+        resolve({
+          durationStr: `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`,
+          durationSec: totalSecs
+        });
+      } else {
+        resolve({ durationStr: '03:00', durationSec: 180 });
+      }
+    };
+
+    audio.onerror = () => {
+      cleanup();
+      resolve({ durationStr: '03:00', durationSec: 180 });
+    };
+
+    audio.src = objectUrl;
+  });
+}
+
 export async function compressAudioFile(
   file: File,
   maxDurationSec: number = 300
@@ -15,8 +58,32 @@ export async function compressAudioFile(
     const AudioCtxClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     const tempCtx = new AudioCtxClass();
 
-    // Decode audio data safely with sliced buffer
-    const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer.slice(0));
+    // Universal decodeAudioData supporting both Callback and Promise styles across all browser engines
+    const audioBuffer = await new Promise<AudioBuffer>((resolve, reject) => {
+      let settled = false;
+      const onDecoded = (buf: AudioBuffer) => {
+        if (!settled) {
+          settled = true;
+          resolve(buf);
+        }
+      };
+      const onErr = (e: unknown) => {
+        if (!settled) {
+          settled = true;
+          reject(e);
+        }
+      };
+
+      try {
+        const res = tempCtx.decodeAudioData(arrayBuffer.slice(0), onDecoded, onErr);
+        if (res && typeof (res as Promise<AudioBuffer>).then === 'function') {
+          (res as Promise<AudioBuffer>).then(onDecoded).catch(onErr);
+        }
+      } catch (err) {
+        onErr(err);
+      }
+    });
+
     try {
       await tempCtx.close();
     } catch {}
@@ -25,8 +92,8 @@ export async function compressAudioFile(
     const targetDuration = Math.min(originalDuration, maxDurationSec);
     const durationSec = Math.round(targetDuration);
 
-    // Target sample rate: 32,000 Hz Mono for compact size with crisp high-fidelity acoustics
-    const targetSampleRate = 32000;
+    // Target sample rate: 24,000 Hz Mono for optimal compression with acoustic clarity
+    const targetSampleRate = 24000;
     const targetLength = Math.max(1, Math.floor(targetDuration * targetSampleRate));
 
     const offlineCtx = new OfflineAudioContext(1, targetLength, targetSampleRate);
@@ -67,15 +134,12 @@ export async function compressAudioFile(
     console.warn('Browser offline audio compression fallback:', err);
     // Fallback: read directly as DataURL and extract real duration from audio metadata
     const rawDataUrl = await blobToDataURL(file);
-    const realDurationSec = await getAudioDurationFromUrl(rawDataUrl).catch(() => 150);
-    const mins = Math.floor(realDurationSec / 60);
-    const secs = Math.floor(realDurationSec % 60);
-    const formattedDuration = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const realDurationInfo = await getAudioDurationFromFile(file).catch(() => ({ durationStr: '03:00', durationSec: 180 }));
 
     return {
       audioUrl: rawDataUrl,
-      duration: formattedDuration,
-      durationSec: realDurationSec,
+      duration: realDurationInfo.durationStr,
+      durationSec: realDurationInfo.durationSec,
       originalSizeMb,
       compressedSizeMb: originalSizeMb
     };
