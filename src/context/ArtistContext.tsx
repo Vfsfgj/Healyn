@@ -56,11 +56,13 @@ import {
   upsertSupabaseAnnouncement,
   deleteSupabaseAnnouncement,
   insertSupabaseSubscriber,
+  deleteSupabaseSubscriber,
   insertSupabaseTicketOrder,
   insertSupabaseShopOrder,
   saveSupabaseProfile,
   isSupabaseConnected,
-  uploadAudioToSupabaseStorage
+  uploadAudioToSupabaseStorage,
+  subscribeToSupabaseRealtime
 } from '../supabase';
 
 export function calculateConcertStatus(tiers: TicketTier[] = []): 'Disponible' | 'Dernières Places' | 'Complet' {
@@ -135,6 +137,7 @@ interface ArtistContextType {
 
   // Newsletter
   subscribeNewsletter: (email: string, preferences?: string[]) => { success: boolean; message: string };
+  deleteSubscriber: (id: string) => void;
 
   // Likes / Interactions
   toggleLikeAnnouncement: (id: string) => void;
@@ -450,10 +453,12 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [isSuperAdmin]);
 
   // ==========================================
-  // SUPABASE POSTGRESQL LIVE INITIALIZATION
+  // SUPABASE POSTGRESQL LIVE INITIALIZATION & REALTIME
   // ==========================================
   useEffect(() => {
-    if (isSupabaseConnected()) {
+    if (!isSupabaseConnected()) return;
+
+    const loadData = () => {
       fetchAllSupabaseData().then((res) => {
         if (res) {
           if (res.tracks && res.tracks.length > 0) {
@@ -478,7 +483,19 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }).catch(err => {
         console.warn("Supabase initial load notice:", err);
       });
-    }
+    };
+
+    // 1. Initial fetch for all visitors
+    loadData();
+
+    // 2. Realtime subscription (instant update when admin publishes audio/tracks/products)
+    const unsubRealtime = subscribeToSupabaseRealtime(() => {
+      loadData();
+    });
+
+    return () => {
+      unsubRealtime();
+    };
   }, []);
 
   // Page URL Hash Sync
@@ -730,6 +747,15 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     insertSupabaseSubscriber(newSubscriber);
     showToast("Bienvenue dans Le Cercle HEALYN !");
     return { success: true, message: "Bienvenue dans Le Cercle. Vous recevrez nos exclusivités en avant-première." };
+  };
+
+  const deleteSubscriber = (id: string) => {
+    setSubscribers(prev => prev.filter(s => s.id !== id));
+    if (!isSupabaseConnected()) {
+      deleteDoc(doc(db, 'subscribers', id)).catch(() => {});
+    }
+    deleteSupabaseSubscriber(id);
+    showToast("Membre retiré du Cercle et de Supabase");
   };
 
   // Likes & Favorites
@@ -986,12 +1012,19 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   };
 
   const deleteTrack = (id: string) => {
+    const trackToDelete = tracks.find(item => item.id === id);
     setTracks(prev => prev.filter(item => item.id !== id));
+    if (activeTrack?.id === id) {
+      audioEngine.stop();
+      setIsPlaying(false);
+      const remaining = tracks.filter(item => item.id !== id);
+      setActiveTrack(remaining.length > 0 ? remaining[0] : null);
+    }
     if (!isSupabaseConnected()) {
       deleteDoc(doc(db, 'tracks', id)).catch(() => {});
     }
-    deleteSupabaseTrack(id);
-    showToast("Morceau retiré");
+    deleteSupabaseTrack(id, trackToDelete?.audioUrl);
+    showToast("Morceau retiré de votre discographie et de Supabase");
   };
 
   const resetToDefaultData = () => {
@@ -1047,6 +1080,7 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         completeShopOrder,
         bookTickets,
         subscribeNewsletter,
+        deleteSubscriber,
         toggleLikeAnnouncement,
         toggleFavoriteTrack,
         addAnnouncement,

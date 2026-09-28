@@ -72,6 +72,7 @@ export const AdminDashboard: React.FC = () => {
     addTicketsToConcert,
     setConcertTicketsRemaining,
     subscribers,
+    deleteSubscriber,
     shopOrders,
     ticketOrders,
     currentUser,
@@ -2269,6 +2270,7 @@ export const AdminDashboard: React.FC = () => {
                           <th className="py-4 px-5">E-mail du Fan</th>
                           <th className="py-4 px-5">Date d'inscription</th>
                           <th className="py-4 px-5">Préférences choisies</th>
+                          <th className="py-4 px-5 text-right">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-100">
@@ -2291,6 +2293,16 @@ export const AdminDashboard: React.FC = () => {
                                   </span>
                                 ))}
                               </div>
+                            </td>
+                            <td className="py-4 px-5 text-right">
+                              <button
+                                type="button"
+                                onClick={() => deleteSubscriber(sub.id)}
+                                className="p-2 text-neutral-400 hover:text-rose-600 rounded-xl hover:bg-neutral-100 transition-colors cursor-pointer"
+                                title="Supprimer cet abonné de la base Supabase"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
                             </td>
                           </tr>
                         ))}

@@ -220,11 +220,21 @@ export async function upsertSupabaseTrack(track: Track) {
   }
 }
 
-export async function deleteSupabaseTrack(id: string) {
+export async function deleteSupabaseTrack(id: string, audioUrl?: string) {
   const client = getSupabaseClient();
   if (!client) return;
   try {
+    // 1. Delete from database table
     await client.from('tracks').delete().eq('id', id);
+
+    // 2. Also remove storage file if hosted on Supabase Storage
+    if (audioUrl && audioUrl.includes('/audio/')) {
+      const parts = audioUrl.split('/audio/');
+      if (parts[1]) {
+        const filePath = decodeURIComponent(parts[1].split('?')[0]);
+        await client.storage.from('audio').remove([filePath]);
+      }
+    }
   } catch (err) {
     console.warn("Supabase deleteTrack error:", err);
   }
@@ -335,6 +345,16 @@ export async function insertSupabaseSubscriber(sub: Subscriber) {
     });
   } catch (err) {
     console.warn("Supabase insertSubscriber error:", err);
+  }
+}
+
+export async function deleteSupabaseSubscriber(id: string) {
+  const client = getSupabaseClient();
+  if (!client) return;
+  try {
+    await client.from('subscribers').delete().eq('id', id);
+  } catch (err) {
+    console.warn("Supabase deleteSubscriber error:", err);
   }
 }
 
@@ -553,6 +573,7 @@ CREATE POLICY "Allow public delete announcements" ON public.announcements FOR DE
 
 CREATE POLICY "Allow public insert subscribers" ON public.subscribers FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public read subscribers" ON public.subscribers FOR SELECT USING (true);
+CREATE POLICY "Allow public delete subscribers" ON public.subscribers FOR DELETE USING (true);
 
 CREATE POLICY "Allow public insert ticket_orders" ON public.ticket_orders FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public read ticket_orders" ON public.ticket_orders FOR SELECT USING (true);
@@ -614,4 +635,29 @@ export async function uploadAudioToSupabaseStorage(
     downloadUrl: publicUrlData.publicUrl,
     fileName: file.name
   };
+}
+
+export function subscribeToSupabaseRealtime(onDataChanged: () => void): () => void {
+  const client = getSupabaseClient();
+  if (!client) return () => {};
+
+  try {
+    const channel = client
+      .channel('public:healyn_live_sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        () => {
+          onDataChanged();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      client.removeChannel(channel);
+    };
+  } catch (err) {
+    console.warn("Supabase Realtime subscription notice:", err);
+    return () => {};
+  }
 }
