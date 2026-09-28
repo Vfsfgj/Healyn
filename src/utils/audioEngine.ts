@@ -54,7 +54,6 @@ class HDWebAudioEngine {
   private setupAudioElement() {
     if (!this.audioElement) {
       this.audioElement = new Audio();
-      this.audioElement.crossOrigin = 'anonymous';
       this.audioElement.preload = 'auto';
       (this.audioElement as any).playsInline = true;
 
@@ -327,6 +326,10 @@ class HDWebAudioEngine {
           const playPromise = this.audioElement.play();
           if (playPromise !== undefined) {
             playPromise.catch(err => {
+              if (err && (err.name === 'AbortError' || String(err).includes('aborted') || String(err).includes('interrupted'))) {
+                // Harmless browser interruption due to rapid playback state change or switching tracks
+                return;
+              }
               console.warn('Playback error for audio URL:', err);
             });
           }

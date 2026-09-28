@@ -8,8 +8,6 @@ import {
   Pause,
   SkipBack,
   SkipForward,
-  Heart,
-  Share2,
   Check,
   Disc3,
   Volume2,
@@ -17,7 +15,11 @@ import {
   ArrowLeft,
   Headphones,
   Sparkles,
-  Maximize2
+  Maximize2,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  Timer
 } from 'lucide-react';
 
 interface Particle3D {
@@ -47,9 +49,13 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
     tracks,
     audioVolume,
     setAudioVolume,
-    toggleFavoriteTrack,
     showToast,
-    setCurrentPage
+    setCurrentPage,
+    playbackMode,
+    cyclePlaybackMode,
+    sleepTimerSeconds,
+    sleepTimerEndAtTrackEnd,
+    setSleepTimer
   } = useArtist();
 
   const currentTrack = activeTrack || tracks[0] || null;
@@ -60,7 +66,21 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
   const [totalDurationSec, setTotalDurationSec] = useState<number>(() => {
     return currentTrack?.durationSec || parseDurationToSec(currentTrack?.duration) || 90;
   });
-  const [copied, setCopied] = useState(false);
+  const [isTimerMenuOpen, setIsTimerMenuOpen] = useState(false);
+  const timerMenuRef = useRef<HTMLDivElement | null>(null);
+
+  // Close timer popover when clicking outside
+  useEffect(() => {
+    if (!isTimerMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (timerMenuRef.current && !timerMenuRef.current.contains(e.target as Node)) {
+        setIsTimerMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isTimerMenuOpen]);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mouseRef = useRef({ x: 0, y: 0, active: false, rx: 0, ry: 0 });
 
@@ -566,23 +586,6 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
     audioEngine.seek(targetSec);
   };
 
-  const handleShare = () => {
-    if (!currentTrack) return;
-    const url = `${window.location.origin}#musique-${currentTrack.id}`;
-    if (navigator.share) {
-      navigator.share({
-        title: `${currentTrack.title} — Streaming HD`,
-        text: `Écoutez "${currentTrack.title}" (${currentTrack.bpm} BPM / ${currentTrack.key})`,
-        url
-      }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(url);
-      setCopied(true);
-      showToast(`Lien d'écoute de "${currentTrack.title}" copié !`);
-      setTimeout(() => setCopied(false), 2500);
-    }
-  };
-
   const handleNext = () => {
     if (!currentTrack || tracks.length === 0) return;
     const currentIndex = tracks.findIndex(t => t.id === currentTrack.id);
@@ -785,19 +788,140 @@ export const ImmersiveTrackModal: React.FC<ImmersiveTrackModalProps> = ({ isOpen
               </div>
 
               <div className="flex items-center gap-1 pl-2 border-l border-neutral-800">
+                {/* Bouton Mode de Lecture (En boucle, Aléatoire, Par ordre) */}
                 <button
-                  onClick={() => toggleFavoriteTrack(currentTrack.id)}
-                  title={currentTrack.isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
-                  className={`p-2 rounded-lg transition-colors cursor-pointer ${
-                    currentTrack.isFavorite ? 'text-[#b32d4e] bg-[#800020]/30' : 'text-neutral-400 hover:text-white'
+                  onClick={cyclePlaybackMode}
+                  title={
+                    playbackMode === 'loop'
+                      ? "Mode : En boucle (cliquer pour changer)"
+                      : playbackMode === 'shuffle'
+                      ? "Mode : Lecture aléatoire (cliquer pour changer)"
+                      : "Mode : Lecture par ordre (cliquer pour changer)"
+                  }
+                  aria-label="Mode de lecture"
+                  className={`p-2 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
+                    playbackMode !== 'order'
+                      ? 'text-white'
+                      : 'text-neutral-400 hover:text-white'
                   }`}
                 >
-                  <Heart className={`w-4 h-4 ${currentTrack.isFavorite ? 'fill-[#800020] stroke-none' : ''}`} />
+                  {playbackMode === 'loop' ? (
+                    <Repeat1 className="w-4 h-4" />
+                  ) : playbackMode === 'shuffle' ? (
+                    <Shuffle className="w-4 h-4" />
+                  ) : (
+                    <Repeat className="w-4 h-4" />
+                  )}
                 </button>
 
-                <button onClick={handleShare} className="p-2 rounded-lg text-neutral-400 hover:text-white transition-colors cursor-pointer" title="Partager">
-                  {copied ? <Check className="w-4 h-4 text-white" /> : <Share2 className="w-4 h-4" />}
-                </button>
+                {/* Bouton Minuteur d'arrêt automatique (Sleep Timer) */}
+                <div className="relative">
+                  <button
+                    onClick={() => setIsTimerMenuOpen(prev => !prev)}
+                    title={
+                      sleepTimerSeconds !== null
+                        ? `Minuteur actif : ${Math.ceil(sleepTimerSeconds / 60)} min restantes`
+                        : sleepTimerEndAtTrackEnd
+                        ? "Minuteur actif : arrêt à la fin du morceau"
+                        : "Minuteur d'arrêt automatique"
+                    }
+                    aria-label="Minuteur de veille"
+                    className={`p-2 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+                      sleepTimerSeconds !== null || sleepTimerEndAtTrackEnd
+                        ? 'text-white'
+                        : 'text-neutral-400 hover:text-white'
+                    }`}
+                  >
+                    <Timer className="w-4 h-4" />
+                    {sleepTimerSeconds !== null && (
+                      <span className="text-[10px] font-mono-code font-bold text-white">
+                        {Math.floor(sleepTimerSeconds / 60)}m
+                      </span>
+                    )}
+                    {sleepTimerEndAtTrackEnd && (
+                      <span className="text-[10px] font-mono-code font-bold text-white">
+                        Fin
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Menu Popover du Minuteur */}
+                  {isTimerMenuOpen && (
+                    <div
+                      ref={timerMenuRef}
+                      className="absolute bottom-full right-0 mb-2 w-56 bg-neutral-900/98 backdrop-blur-md border border-neutral-800 rounded-2xl p-2.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 text-xs text-white"
+                    >
+                      <div className="flex items-center justify-between px-2 py-1 border-b border-neutral-800 pb-1.5 mb-1 text-[11px] font-mono-code text-neutral-400">
+                        <span className="font-semibold text-white flex items-center gap-1.5">
+                          <Timer className="w-3.5 h-3.5 text-white" />
+                          <span>Minuteur d'arrêt</span>
+                        </span>
+                        <button
+                          onClick={() => setIsTimerMenuOpen(false)}
+                          className="text-neutral-500 hover:text-white p-0.5 rounded cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {(sleepTimerSeconds !== null || sleepTimerEndAtTrackEnd) && (
+                        <div className="p-2 mb-1.5 bg-neutral-800/80 rounded-xl text-center">
+                          <div className="text-[10px] text-neutral-200 font-mono-code">
+                            {sleepTimerSeconds !== null
+                              ? `Arrêt dans ${Math.floor(sleepTimerSeconds / 60)}m ${String(sleepTimerSeconds % 60).padStart(2, '0')}s`
+                              : 'Arrêt à la fin de cette musique'}
+                          </div>
+                          <button
+                            onClick={() => {
+                              setSleepTimer(null);
+                              setIsTimerMenuOpen(false);
+                            }}
+                            className="mt-1 text-[10px] text-neutral-400 hover:text-white underline font-mono-code cursor-pointer"
+                          >
+                            Annuler le minuteur
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="space-y-0.5">
+                        {[
+                          { label: '5 minutes', value: 5 },
+                          { label: '15 minutes', value: 15 },
+                          { label: '30 minutes', value: 30 },
+                          { label: '45 minutes', value: 45 },
+                          { label: '60 minutes', value: 60 }
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            onClick={() => {
+                              setSleepTimer(opt.value);
+                              setIsTimerMenuOpen(false);
+                            }}
+                            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer flex items-center justify-between text-xs font-mono-code"
+                          >
+                            <span>{opt.label}</span>
+                            {sleepTimerSeconds !== null && Math.ceil(sleepTimerSeconds / 60) === opt.value && (
+                              <Check className="w-3.5 h-3.5 text-white" />
+                            )}
+                          </button>
+                        ))}
+
+                        <button
+                          onClick={() => {
+                            setSleepTimer(null, true);
+                            setIsTimerMenuOpen(false);
+                          }}
+                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors cursor-pointer flex items-center justify-between text-xs font-mono-code border-t border-neutral-800/80 pt-1.5 mt-1"
+                        >
+                          <span>Fin du morceau en cours</span>
+                          {sleepTimerEndAtTrackEnd && (
+                            <Check className="w-3.5 h-3.5 text-white" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 

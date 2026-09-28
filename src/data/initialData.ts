@@ -38,7 +38,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: "prod-vinyl-white",
     title: "Restoration — Vinyle Collector 180g (White Marble)",
     category: "Vinyles & Disques",
-    price: 39,
+    price: 25000,
     stock: 24,
     maxStock: 300,
     isLimitedEdition: true,
@@ -59,7 +59,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: "prod-hoodie-heavy",
     title: "Sweat à Capuche 'healing' — 480 GSM Coton Bio",
     category: "Textiles & Merch",
-    price: 85,
+    price: 45000,
     stock: 18,
     maxStock: 100,
     isLimitedEdition: true,
@@ -80,7 +80,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: "prod-art-print",
     title: "Sérigraphie 'Ondes & Guérison' (40 × 60 cm)",
     category: "Art & Sérigraphie",
-    price: 65,
+    price: 35000,
     stock: 12,
     maxStock: 50,
     isLimitedEdition: true,
@@ -97,7 +97,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: "prod-digital-stems",
     title: "Stems Pack & Stéréo Master FLAC 24-bit (Healing Audio Lab)",
     category: "Édition Collector",
-    price: 29,
+    price: 15000,
     stock: 999,
     maxStock: 999,
     isLimitedEdition: false,
@@ -126,21 +126,21 @@ export const INITIAL_CONCERTS: Concert[] = [
       {
         id: "tier-fosse",
         name: "Fosse Debout",
-        price: 38,
+        price: 25000,
         remaining: 14,
         description: "Accès à la fosse principale au plus près de la scénographie lumineuse healing."
       },
       {
         id: "tier-balcon",
         name: "Mezzanine & Balcon Assis",
-        price: 52,
+        price: 35000,
         remaining: 6,
         description: "Siège numéroté avec acoustique optimale et vue panoramique."
       },
       {
         id: "tier-vip",
         name: "Pass Immersion VIP + Soundcheck",
-        price: 95,
+        price: 65000,
         remaining: 3,
         description: "Accès aux balances sonores privées, rencontre avec l'artiste healing, vinyle dédicacé."
       }
@@ -159,14 +159,14 @@ export const INITIAL_CONCERTS: Concert[] = [
       {
         id: "tier-berlin-standard",
         name: "Admission Générale",
-        price: 36,
+        price: 25000,
         remaining: 85,
         description: "Accès complet au hall cathédrale et performance sonore 360° quadraphonique."
       },
       {
         id: "tier-berlin-soundcheck",
         name: "Soundcheck Experience + Vinyl",
-        price: 88,
+        price: 55000,
         remaining: 12,
         description: "Entrée anticipée 17h, écoute commentée des balances et vinyle exclusif."
       }
@@ -185,14 +185,14 @@ export const INITIAL_CONCERTS: Concert[] = [
       {
         id: "tier-london-standing",
         name: "Stalls Standing",
-        price: 42,
+        price: 25000,
         remaining: 64,
         description: "Debout au rez-de-chaussée sous la verrière circulaire historique."
       },
       {
         id: "tier-london-circle",
         name: "Circle Seated",
-        price: 55,
+        price: 35000,
         remaining: 28,
         description: "Siège réservé en balcon circulaire."
       }
@@ -211,7 +211,7 @@ export const INITIAL_CONCERTS: Concert[] = [
       {
         id: "tier-tokyo-all",
         name: "All-Standing + Drink Ticket",
-        price: 45,
+        price: 30000,
         remaining: 9,
         description: "Accès live avec boisson incluse au bar de Liquidroom."
       }
@@ -230,7 +230,7 @@ export const INITIAL_CONCERTS: Concert[] = [
       {
         id: "tier-mtl-admission",
         name: "Admission Générale Parterre",
-        price: 39,
+        price: 25000,
         remaining: 120,
         description: "Accès debout au parterre principal."
       }
@@ -249,7 +249,7 @@ export const INITIAL_CONCERTS: Concert[] = [
       {
         id: "tier-ny-ga",
         name: "General Admission",
-        price: 48,
+        price: 30000,
         remaining: 0,
         description: "Événement complet. Inscription sur liste d'attente."
       }

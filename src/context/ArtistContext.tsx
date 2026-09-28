@@ -106,6 +106,12 @@ interface ArtistContextType {
   togglePlayPause: () => void;
   stopAudio: () => void;
   setAudioVolume: (vol: number) => void;
+  playbackMode: 'order' | 'loop' | 'shuffle';
+  setPlaybackMode: (mode: 'order' | 'loop' | 'shuffle') => void;
+  cyclePlaybackMode: () => void;
+  sleepTimerSeconds: number | null;
+  sleepTimerEndAtTrackEnd: boolean;
+  setSleepTimer: (minutes: number | null, endOfTrack?: boolean) => void;
 
   // Cart & UI Modals
   isCartOpen: boolean;
@@ -242,11 +248,35 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     ]);
     return (loaded || []).filter(t => !demoIds.has(t.id) && !demoTitles.has(t.title));
   });
-  const [products, setProducts] = useState<Product[]>(() => loadFromStorage(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS));
-  const [concerts, setConcerts] = useState<Concert[]>(() => loadFromStorage(STORAGE_KEYS.CONCERTS, INITIAL_CONCERTS));
+  const [products, setProducts] = useState<Product[]>(() => {
+    const loaded = loadFromStorage(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS);
+    return (loaded || []).map((p: Product) => ({
+      ...p,
+      price: p.price < 1000 ? Math.round((p.price * 650) / 1000) * 1000 : p.price
+    }));
+  });
+  const [concerts, setConcerts] = useState<Concert[]>(() => {
+    const loaded = loadFromStorage(STORAGE_KEYS.CONCERTS, INITIAL_CONCERTS);
+    return (loaded || []).map((c: Concert) => ({
+      ...c,
+      ticketTiers: (c.ticketTiers || []).map(t => ({
+        ...t,
+        price: t.price < 1000 ? Math.round((t.price * 650) / 1000) * 1000 : t.price
+      }))
+    }));
+  });
   const [announcements, setAnnouncements] = useState<Announcement[]>(() => loadFromStorage(STORAGE_KEYS.ANNOUNCEMENTS, INITIAL_ANNOUNCEMENTS));
   const [subscribers, setSubscribers] = useState<Subscriber[]>(() => loadFromStorage(STORAGE_KEYS.SUBSCRIBERS, INITIAL_SUBSCRIBERS));
-  const [cart, setCart] = useState<CartItem[]>(() => loadFromStorage(STORAGE_KEYS.CART, []));
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    const loaded = loadFromStorage(STORAGE_KEYS.CART, []);
+    return (loaded || []).map((item: CartItem) => ({
+      ...item,
+      product: {
+        ...item.product,
+        price: item.product.price < 1000 ? Math.round((item.product.price * 650) / 1000) * 1000 : item.product.price
+      }
+    }));
+  });
   const [ticketOrders, setTicketOrders] = useState<TicketOrder[]>(() => loadFromStorage(STORAGE_KEYS.ORDERS_TICKETS, []));
   const [shopOrders, setShopOrders] = useState<ShopOrder[]>(() => loadFromStorage(STORAGE_KEYS.ORDERS_SHOP, []));
 
@@ -254,6 +284,9 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [audioVolume, setAudioVolumeState] = useState<number>(0.8);
+  const [playbackMode, setPlaybackMode] = useState<'order' | 'loop' | 'shuffle'>('order');
+  const [sleepTimerSeconds, setSleepTimerSeconds] = useState<number | null>(null);
+  const [sleepTimerEndAtTrackEnd, setSleepTimerEndAtTrackEnd] = useState<boolean>(false);
 
   // Modals & UI Navigation
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -569,13 +602,71 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [tracks, activeTrack]);
 
-  // Audio completion listener
+  // Sleep Timer Countdown Ticker
+  useEffect(() => {
+    if (sleepTimerSeconds === null) return;
+    if (sleepTimerSeconds <= 0) {
+      audioEngine.stop(false);
+      setIsPlaying(false);
+      setSleepTimerSeconds(null);
+      setSleepTimerEndAtTrackEnd(false);
+      showToast("Minuteur de veille terminé : la musique s'est arrêtée.");
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setSleepTimerSeconds(prev => {
+        if (prev === null) return null;
+        if (prev <= 1) {
+          audioEngine.stop(false);
+          setIsPlaying(false);
+          showToast("Minuteur de veille terminé : la musique s'est arrêtée.");
+          return null;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [sleepTimerSeconds]);
+
+  // Audio completion listener: handles loop, shuffle, order, and end-of-track sleep timer
   useEffect(() => {
     const unsub = audioEngine.addEndedListener(() => {
-      setIsPlaying(false);
+      if (sleepTimerEndAtTrackEnd) {
+        audioEngine.stop(false);
+        setIsPlaying(false);
+        setSleepTimerSeconds(null);
+        setSleepTimerEndAtTrackEnd(false);
+        showToast("Fin du morceau : la musique s'est arrêtée.");
+        return;
+      }
+
+      if (playbackMode === 'loop') {
+        if (activeTrack) {
+          playTrack(activeTrack, true);
+        }
+      } else if (playbackMode === 'shuffle') {
+        if (tracks.length > 1) {
+          const otherTracks = tracks.filter(t => t.id !== activeTrack?.id);
+          const randomTrack = otherTracks[Math.floor(Math.random() * otherTracks.length)];
+          playTrack(randomTrack);
+        } else if (tracks.length === 1) {
+          playTrack(tracks[0], true);
+        }
+      } else {
+        // Sequential order
+        if (tracks.length > 0) {
+          const curIdx = activeTrack ? tracks.findIndex(t => t.id === activeTrack.id) : -1;
+          const next = tracks[(curIdx + 1) % tracks.length];
+          playTrack(next);
+        } else {
+          setIsPlaying(false);
+        }
+      }
     });
     return unsub;
-  }, []);
+  }, [playbackMode, activeTrack, tracks, sleepTimerEndAtTrackEnd]);
 
   // Screen Wake Lock API: Prevent screen from sleeping / locking while music is actively playing
   useEffect(() => {
@@ -694,6 +785,38 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const setAudioVolume = (vol: number) => {
     setAudioVolumeState(vol);
     audioEngine.setVolume(vol);
+  };
+
+  const cyclePlaybackMode = () => {
+    setPlaybackMode(prev => {
+      if (prev === 'order') {
+        showToast("Mode : Répétition en boucle du morceau");
+        return 'loop';
+      }
+      if (prev === 'loop') {
+        showToast("Mode : Lecture aléatoire (Shuffle)");
+        return 'shuffle';
+      }
+      showToast("Mode : Lecture par ordre séquentiel");
+      return 'order';
+    });
+  };
+
+  const setSleepTimer = (minutes: number | null, endOfTrack: boolean = false) => {
+    if (endOfTrack) {
+      setSleepTimerEndAtTrackEnd(true);
+      setSleepTimerSeconds(null);
+      showToast("Minuteur activé : arrêt à la fin de cette musique");
+      return;
+    }
+    setSleepTimerEndAtTrackEnd(false);
+    if (minutes === null || minutes <= 0) {
+      setSleepTimerSeconds(null);
+      showToast("Minuteur de veille désactivé");
+    } else {
+      setSleepTimerSeconds(minutes * 60);
+      showToast(`Minuteur activé : arrêt dans ${minutes} minute${minutes > 1 ? 's' : ''}`);
+    }
   };
 
   const setProfile = (newP: ArtistProfile) => {
@@ -1189,6 +1312,12 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         togglePlayPause,
         stopAudio,
         setAudioVolume,
+        playbackMode,
+        setPlaybackMode,
+        cyclePlaybackMode,
+        sleepTimerSeconds,
+        sleepTimerEndAtTrackEnd,
+        setSleepTimer,
         isCartOpen,
         setIsCartOpen,
         isAdminOpen,

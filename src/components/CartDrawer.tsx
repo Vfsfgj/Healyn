@@ -12,6 +12,7 @@ import {
   Package
 } from 'lucide-react';
 import { ShopOrder } from '../types';
+import { formatFCFA } from '../utils/formatters';
 
 export const CartDrawer: React.FC = () => {
   const {
@@ -37,9 +38,9 @@ export const CartDrawer: React.FC = () => {
   if (!isCartOpen) return null;
 
   const subtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
-  const freeShippingThreshold = 80;
+  const freeShippingThreshold = 50000;
   const missingForFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
-  const shippingCost = subtotal >= freeShippingThreshold || subtotal === 0 ? 0 : 7;
+  const shippingCost = subtotal >= freeShippingThreshold || subtotal === 0 ? 0 : 3000;
   const total = subtotal + shippingCost;
 
   const handleCheckoutSubmit = (e: React.FormEvent) => {
@@ -129,7 +130,7 @@ export const CartDrawer: React.FC = () => {
                   </div>
                   <div className="pt-2 border-t border-neutral-200 flex justify-between font-bold text-neutral-950">
                     <span>Total payé :</span>
-                    <span className="font-mono-code">{completedOrder.total} €</span>
+                    <span className="font-mono-code">{formatFCFA(completedOrder.total)}</span>
                   </div>
                 </div>
 
@@ -269,7 +270,7 @@ export const CartDrawer: React.FC = () => {
                     <div className="flex items-center justify-between text-base font-bold text-neutral-950">
                       <span>Total Commande :</span>
                       <span className="font-mono-code tabular-nums text-xl">
-                        {total} €
+                        {formatFCFA(total)}
                       </span>
                     </div>
 
@@ -279,7 +280,7 @@ export const CartDrawer: React.FC = () => {
                       className="w-full py-3.5 bg-neutral-950 text-white rounded-xl text-xs font-semibold hover:bg-neutral-800 transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:bg-neutral-300 shadow-sm"
                     >
                       <ShieldCheck className="w-4 h-4" />
-                      <span>{isProcessing ? 'Validation du paiement...' : `Payer ${total} €`}</span>
+                      <span>{isProcessing ? 'Validation du paiement...' : `Payer ${formatFCFA(total)}`}</span>
                     </button>
 
                     <p className="text-[10px] text-center text-neutral-500 font-mono-code">
@@ -306,7 +307,7 @@ export const CartDrawer: React.FC = () => {
                       <span className="text-emerald-950 font-medium">
                         {missingForFreeShipping === 0
                           ? 'Livraison standard offerte !'
-                          : `Plus que ${missingForFreeShipping} € pour la livraison offerte`}
+                          : `Plus que ${formatFCFA(missingForFreeShipping)} pour la livraison offerte`}
                       </span>
                       <span className="text-emerald-800 font-bold">
                         {Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100))}%
@@ -366,7 +367,7 @@ export const CartDrawer: React.FC = () => {
                           )}
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs font-mono-code font-bold text-neutral-950 tabular-nums">
-                              {item.product.price} €
+                              {formatFCFA(item.product.price)}
                             </span>
                             <button
                               type="button"
@@ -417,17 +418,17 @@ export const CartDrawer: React.FC = () => {
               <div className="space-y-2 text-xs">
                 <div className="flex justify-between text-neutral-600">
                   <span>Sous-total créations :</span>
-                  <span className="font-mono-code font-semibold tabular-nums text-neutral-950">{subtotal} €</span>
+                  <span className="font-mono-code font-semibold tabular-nums text-neutral-950">{formatFCFA(subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-neutral-600">
                   <span>Frais de port :</span>
                   <span className="font-mono-code font-semibold tabular-nums text-neutral-950">
-                    {shippingCost === 0 ? 'Offert' : `${shippingCost} €`}
+                    {shippingCost === 0 ? 'Offert' : formatFCFA(shippingCost)}
                   </span>
                 </div>
                 <div className="flex justify-between font-bold text-neutral-950 text-base pt-2.5 border-t border-neutral-200/80">
                   <span>Total :</span>
-                  <span className="font-mono-code tabular-nums text-xl">{total} €</span>
+                  <span className="font-mono-code tabular-nums text-xl">{formatFCFA(total)}</span>
                 </div>
               </div>
 
