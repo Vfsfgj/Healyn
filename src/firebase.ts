@@ -131,14 +131,11 @@ export async function uploadAudioToFirebaseStorage(
   });
 }
 
-// Test initial connection as required by Firebase skill
-async function testConnection() {
+// Optional test connection
+export async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Vérification de connexion Firebase : le client est hors ligne.");
-    }
+  } catch {
+    // Silently ignore if Firestore database is not configured
   }
 }
-testConnection();

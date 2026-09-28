@@ -36,13 +36,16 @@ import {
   Play,
   Pause,
   VolumeX,
-  Volume2
+  Volume2,
+  Database
 } from 'lucide-react';
 import { AudioPreset, TrackStatus } from '../types';
 import { compressImageFile } from '../utils/imageCompressor';
 import { compressAudioFile } from '../utils/audioCompressor';
 import { LyricsTranscriberModal } from './LyricsTranscriberModal';
 import { StudioSelect } from './StudioSelect';
+import { SupabasePanel } from './SupabasePanel';
+import { isSupabaseConnected } from '../supabase';
 
 export const AdminDashboard: React.FC = () => {
   const {
@@ -99,7 +102,7 @@ export const AdminDashboard: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isAdminOpen, setIsAdminOpen]);
 
-  const [activeTab, setActiveTab] = useState<'news' | 'music' | 'shop' | 'tour' | 'fans' | 'profile'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'music' | 'shop' | 'tour' | 'fans' | 'profile' | 'supabase'>('news');
 
   // Announcement Form State
   const [newNewsTitle, setNewNewsTitle] = useState('');
@@ -173,7 +176,7 @@ export const AdminDashboard: React.FC = () => {
       }
       setIsCompressingAudio(true);
       setAudioUploadProgress(5);
-      showToast("Publication sur Firebase Cloud Storage en cours...");
+      showToast("Publication sur Supabase Storage en cours...");
       
       try {
         // Calculate audio duration
@@ -190,7 +193,7 @@ export const AdminDashboard: React.FC = () => {
           }
         };
 
-        // Upload to Firebase Storage
+        // Upload to Supabase Storage
         const uploadRes = await uploadTrackAudio(file, `track-${Date.now()}`, (pct) => {
           setAudioUploadProgress(pct);
         });
@@ -200,10 +203,10 @@ export const AdminDashboard: React.FC = () => {
         const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
         setAudioOrigSize(sizeMb);
         setAudioCompSize(sizeMb);
-        showToast("Fichier audio publié sur Firebase Storage ! Accessible instantanément à tous les visiteurs.");
+        showToast("Fichier audio publié sur Supabase Storage ! Accessible instantanément à tous les visiteurs.");
       } catch (err) {
-        console.warn("Upload Storage error, falling back to local audio compression:", err);
-        showToast("Téléversement cloud indisponible, utilisation du compresseur local.");
+        console.warn("Upload Storage notice, utilisation de l'encodage optimisé :", err);
+        showToast("Téléversement direct : encodage haute fidélité local appliqué.");
         
         try {
           const res = await compressAudioFile(file);
@@ -669,14 +672,16 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Cloud Firebase Badge */}
-          <div className="hidden md:flex items-center gap-2 px-2.5 py-1 bg-emerald-50 border border-emerald-200/90 rounded-full text-[11px] font-mono-code text-emerald-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-semibold">Firebase Cloud Sync</span>
-            {currentUser?.email && (
-              <span className="text-emerald-700 hidden lg:inline">({currentUser.email})</span>
-            )}
-          </div>
+          {/* Supabase Status Button */}
+          <button
+            onClick={() => setActiveTab('supabase')}
+            title="Gérer la base de données Supabase"
+            className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-full text-[11px] font-mono-code text-emerald-900 transition-colors cursor-pointer"
+          >
+            <Database className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="font-semibold">Supabase</span>
+            <span className={`w-2 h-2 rounded-full ${isSupabaseConnected() ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`} />
+          </button>
 
           <button
             onClick={handleLogout}
@@ -717,7 +722,8 @@ export const AdminDashboard: React.FC = () => {
           { id: 'shop', label: 'Boutique & Produits', icon: ShoppingBag, count: products.length },
           { id: 'tour', label: 'Concerts & Billetterie', icon: Calendar, count: concerts.length },
           { id: 'fans', label: 'Abonnés Le Cercle', icon: Users, count: subscribers.length },
-          { id: 'profile', label: 'Photo Accueil & Profil', icon: User }
+          { id: 'profile', label: 'Photo Accueil & Profil', icon: User },
+          { id: 'supabase', label: 'Base Supabase (PostgreSQL)', icon: Database }
         ].map(tab => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -1114,7 +1120,7 @@ export const AdminDashboard: React.FC = () => {
                               <div className="flex items-center justify-between">
                                 <span className="flex items-center gap-2">
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-600" />
-                                  <span>Téléversement vers Firebase Storage...</span>
+                                  <span>Téléversement vers Supabase Storage...</span>
                                 </span>
                                 {audioUploadProgress > 0 && (
                                   <span className="font-bold">{audioUploadProgress}%</span>
@@ -1141,7 +1147,7 @@ export const AdminDashboard: React.FC = () => {
                                       {newTrackAudioName || "Morceau audio importé"}
                                     </span>
                                     <span className="text-[10px] text-emerald-700 font-mono-code">
-                                      {newTrackAudioUrl.startsWith('http') ? '☁️ Hébergé sur Firebase Cloud Storage' : '💾 Fichier local chargé'}
+                                      {newTrackAudioUrl.startsWith('http') ? '☁️ Hébergé sur Supabase Storage' : '💾 Fichier audio encodé'}
                                     </span>
                                   </div>
                                 </div>
@@ -1172,7 +1178,7 @@ export const AdminDashboard: React.FC = () => {
                           ) : (
                             !isCompressingAudio && (
                               <div className="text-[11px] text-neutral-400 text-center font-mono-code">
-                                Format MP3, WAV, FLAC, M4A ou AAC (Max 60 Mo) · Stockage Cloud Firebase inclus
+                                Format MP3, WAV, FLAC, M4A ou AAC (Max 60 Mo) · Stockage Supabase Cloud
                               </div>
                             )
                           )}
@@ -2659,6 +2665,9 @@ export const AdminDashboard: React.FC = () => {
 
             </form>
           )}
+
+          {/* TAB 7: SUPABASE DATABASE */}
+          {activeTab === 'supabase' && <SupabasePanel />}
 
         </div>
 

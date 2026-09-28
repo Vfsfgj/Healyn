@@ -8,10 +8,10 @@ import {
 } from '../types';
 
 export const INITIAL_PROFILE: ArtistProfile = {
-  name: "Healing Project",
-  stageName: "healing",
+  name: "HEALYN",
+  stageName: "HEALYN",
   tagline: "",
-  bio: "healing est un projet musical et artistique immersif explorant les fréquences sonores thérapeutiques, le piano contemporain et les textures électroniques modulaires. Pensé comme un refuge auditif, healing sculpte des espaces où chaque onde sonore favorise l'apaisement, la résonance intérieure et la méditation profonde.",
+  bio: "HEALYN est un projet musical et artistique immersif explorant les fréquences sonores thérapeutiques, le piano contemporain et les textures électroniques modulaires. Pensé comme un refuge auditif, HEALYN sculpte des espaces où chaque onde sonore favorise l'apaisement, la résonance intérieure et la méditation profonde.",
   statement: "« La musique n'est pas seulement un art, c'est une fréquence de guérison et de reconnexion au silence. »",
   city: "Paris / Tokyo / Berlin",
   heroImage: "/src/assets/images/hero_artist_portrait_1790345746015.jpg",

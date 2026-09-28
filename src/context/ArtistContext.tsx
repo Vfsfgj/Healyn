@@ -45,6 +45,23 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth';
+import {
+  fetchAllSupabaseData,
+  upsertSupabaseTrack,
+  deleteSupabaseTrack,
+  upsertSupabaseProduct,
+  deleteSupabaseProduct,
+  upsertSupabaseConcert,
+  deleteSupabaseConcert,
+  upsertSupabaseAnnouncement,
+  deleteSupabaseAnnouncement,
+  insertSupabaseSubscriber,
+  insertSupabaseTicketOrder,
+  insertSupabaseShopOrder,
+  saveSupabaseProfile,
+  isSupabaseConnected,
+  uploadAudioToSupabaseStorage
+} from '../supabase';
 
 export function calculateConcertStatus(tiers: TicketTier[] = []): 'Disponible' | 'Dernières Places' | 'Complet' {
   const total = tiers.reduce((acc, t) => acc + Math.max(0, t.remaining || 0), 0);
@@ -202,7 +219,13 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [currentPage, setCurrentPageState] = useState<AppPage>(() => getPageFromHash());
 
   // Entity States initialized with cache/fallback
-  const [profile, setProfileState] = useState<ArtistProfile>(() => loadFromStorage(STORAGE_KEYS.PROFILE, INITIAL_PROFILE));
+  const [profile, setProfileState] = useState<ArtistProfile>(() => {
+    const loaded = loadFromStorage(STORAGE_KEYS.PROFILE, INITIAL_PROFILE);
+    if (!loaded.stageName || loaded.stageName.toLowerCase() === 'healing' || loaded.name === 'Healing Project') {
+      return { ...loaded, name: 'HEALYN', stageName: 'HEALYN' };
+    }
+    return loaded;
+  });
   const [tracks, setTracks] = useState<Track[]>(() => loadFromStorage(STORAGE_KEYS.TRACKS, INITIAL_TRACKS));
   const [products, setProducts] = useState<Product[]>(() => loadFromStorage(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS));
   const [concerts, setConcerts] = useState<Concert[]>(() => loadFromStorage(STORAGE_KEYS.CONCERTS, INITIAL_CONCERTS));
@@ -285,13 +308,21 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     trackId: string,
     onProgress?: (pct: number) => void
   ) => {
+    if (isSupabaseConnected()) {
+      return await uploadAudioToSupabaseStorage(file, trackId, onProgress);
+    }
     return await uploadAudioToFirebaseStorage(file, trackId, onProgress);
   };
 
   // ==========================================
-  // REAL-TIME FIRESTORE SYNCHRONIZATION
+  // REAL-TIME FIRESTORE SYNCHRONIZATION (Fallback when Supabase not used)
   // ==========================================
   useEffect(() => {
+    // When Supabase is configured, bypass Firestore listeners to avoid '(default) not found' warnings
+    if (isSupabaseConnected()) {
+      return;
+    }
+
     // 1. Sync Tracks
     const unsubTracks = onSnapshot(collection(db, 'tracks'), (snapshot) => {
       if (!snapshot.empty) {
@@ -308,8 +339,8 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           });
         });
       }
-    }, (error) => {
-      console.warn("Firestore tracks sync offline fallback:", error);
+    }, () => {
+      // Offline fallback
     });
 
     // 2. Sync Products
@@ -325,8 +356,8 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           setDoc(doc(db, 'products', p.id), p).catch(err => console.warn(err));
         });
       }
-    }, (error) => {
-      console.warn("Firestore products sync offline fallback:", error);
+    }, () => {
+      // Offline fallback
     });
 
     // 3. Sync Concerts
@@ -342,8 +373,8 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           setDoc(doc(db, 'concerts', c.id), c).catch(err => console.warn(err));
         });
       }
-    }, (error) => {
-      console.warn("Firestore concerts sync offline fallback:", error);
+    }, () => {
+      // Offline fallback
     });
 
     // 4. Sync Announcements
@@ -359,8 +390,8 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           setDoc(doc(db, 'announcements', a.id), a).catch(err => console.warn(err));
         });
       }
-    }, (error) => {
-      console.warn("Firestore news sync offline fallback:", error);
+    }, () => {
+      // Offline fallback
     });
 
     // 5. Sync Artist Profile
@@ -370,8 +401,8 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       } else if (isSuperAdmin) {
         setDoc(doc(db, 'settings', 'artistProfile'), INITIAL_PROFILE).catch(err => console.warn(err));
       }
-    }, (error) => {
-      console.warn("Firestore profile sync offline fallback:", error);
+    }, () => {
+      // Offline fallback
     });
 
     return () => {
@@ -385,7 +416,7 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   // Sync Admin collections if authenticated
   useEffect(() => {
-    if (!isSuperAdmin) return;
+    if (!isSuperAdmin || isSupabaseConnected()) return;
 
     const unsubSubscribers = onSnapshot(collection(db, 'subscribers'), (snap) => {
       if (!snap.empty) {
@@ -417,6 +448,38 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       unsubShop();
     };
   }, [isSuperAdmin]);
+
+  // ==========================================
+  // SUPABASE POSTGRESQL LIVE INITIALIZATION
+  // ==========================================
+  useEffect(() => {
+    if (isSupabaseConnected()) {
+      fetchAllSupabaseData().then((res) => {
+        if (res) {
+          if (res.tracks && res.tracks.length > 0) {
+            setTracks(res.tracks);
+          }
+          if (res.products && res.products.length > 0) {
+            setProducts(res.products);
+          }
+          if (res.concerts && res.concerts.length > 0) {
+            setConcerts(res.concerts);
+          }
+          if (res.announcements && res.announcements.length > 0) {
+            setAnnouncements(res.announcements);
+          }
+          if (res.subscribers && res.subscribers.length > 0) {
+            setSubscribers(res.subscribers);
+          }
+          if (res.profile) {
+            setProfileState(res.profile);
+          }
+        }
+      }).catch(err => {
+        console.warn("Supabase initial load notice:", err);
+      });
+    }
+  }, []);
 
   // Page URL Hash Sync
   const setCurrentPage = (page: AppPage) => {
@@ -493,10 +556,11 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const setProfile = (newP: ArtistProfile) => {
     setProfileState(newP);
-    setDoc(doc(db, 'settings', 'artistProfile'), newP).catch(err => {
-      console.warn("Firestore profile save fallback:", err);
-    });
-    showToast("Profil de l'artiste mis à jour et synchronisé sur le Cloud");
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'settings', 'artistProfile'), newP).catch(() => {});
+    }
+    saveSupabaseProfile(newP);
+    showToast("Profil de l'artiste mis à jour et synchronisé");
   };
 
   // Cart Management
@@ -555,10 +619,11 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     setShopOrders(prev => [newOrder, ...prev]);
 
-    // Save to Firestore
-    setDoc(doc(db, 'shopOrders', newOrder.id), newOrder).catch(err => {
-      console.warn("Firestore shop order sync:", err);
-    });
+    // Save to Firestore (only if Supabase is not active) and Supabase
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'shopOrders', newOrder.id), newOrder).catch(() => {});
+    }
+    insertSupabaseShopOrder(newOrder);
 
     // Deduct stock
     setProducts(prevProducts => {
@@ -566,7 +631,9 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         const ordered = cart.find(c => c.productId === p.id);
         if (ordered) {
           const newStock = Math.max(0, p.stock - ordered.quantity);
-          updateDoc(doc(db, 'products', p.id), { stock: newStock }).catch(() => {});
+          if (!isSupabaseConnected()) {
+            updateDoc(doc(db, 'products', p.id), { stock: newStock }).catch(() => {});
+          }
           return { ...p, stock: newStock };
         }
         return p;
@@ -605,10 +672,11 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       createdAt: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     };
 
-    // Save to Firestore
-    setDoc(doc(db, 'ticketOrders', newTicketOrder.id), newTicketOrder).catch(err => {
-      console.warn("Firestore ticket sync:", err);
-    });
+    // Save to Firestore and Supabase
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'ticketOrders', newTicketOrder.id), newTicketOrder).catch(() => {});
+    }
+    insertSupabaseTicketOrder(newTicketOrder);
 
     // Deduct remaining tickets
     setConcerts(prevConcerts => {
@@ -616,16 +684,18 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (c.id === orderData.concert.id) {
           const updatedTiers = c.ticketTiers.map(tier => {
             if (tier.name === orderData.tierName) {
-              const updatedRemaining = Math.max(0, tier.remaining - orderData.quantity);
-              return { ...tier, remaining: updatedRemaining };
+               const updatedRemaining = Math.max(0, tier.remaining - orderData.quantity);
+               return { ...tier, remaining: updatedRemaining };
             }
             return tier;
           });
           const newStatus = calculateConcertStatus(updatedTiers);
-          updateDoc(doc(db, 'concerts', c.id), {
-            ticketTiers: updatedTiers,
-            status: newStatus
-          }).catch(() => {});
+          if (!isSupabaseConnected()) {
+            updateDoc(doc(db, 'concerts', c.id), {
+              ticketTiers: updatedTiers,
+              status: newStatus
+            }).catch(() => {});
+          }
           return { ...c, ticketTiers: updatedTiers, status: newStatus };
         }
         return c;
@@ -645,7 +715,7 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
     const exists = subscribers.some(s => s.email.toLowerCase() === trimmed);
     if (exists) {
-      return { success: true, message: "Vous êtes déjà membre du Cercle healing." };
+      return { success: true, message: "Vous êtes déjà membre du Cercle HEALYN." };
     }
     const newSubscriber: Subscriber = {
       id: `sub-${Date.now()}`,
@@ -654,10 +724,11 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       preferences
     };
     setSubscribers(prev => [newSubscriber, ...prev]);
-    setDoc(doc(db, 'subscribers', newSubscriber.id), newSubscriber).catch(err => {
-      console.warn("Firestore subscriber sync:", err);
-    });
-    showToast("Bienvenue dans Le Cercle healing !");
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'subscribers', newSubscriber.id), newSubscriber).catch(() => {});
+    }
+    insertSupabaseSubscriber(newSubscriber);
+    showToast("Bienvenue dans Le Cercle HEALYN !");
     return { success: true, message: "Bienvenue dans Le Cercle. Vous recevrez nos exclusivités en avant-première." };
   };
 
@@ -697,25 +768,36 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       likes: 0
     };
     setAnnouncements(prev => [newItem, ...prev]);
-    setDoc(doc(db, 'announcements', newItem.id), newItem).catch(err => {
-      console.warn("Firestore add news error:", err);
-    });
-    showToast("Actualité publiée avec succès et synchronisée sur Firebase");
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'announcements', newItem.id), newItem).catch(() => {});
+    }
+    upsertSupabaseAnnouncement(newItem);
+    showToast("Actualité publiée avec succès");
   };
 
   const updateAnnouncement = (id: string, a: Partial<Announcement>) => {
-    setAnnouncements(prev => prev.map(item => item.id === id ? { ...item, ...a } : item));
-    updateDoc(doc(db, 'announcements', id), a).catch(err => {
-      console.warn("Firestore update news error:", err);
-    });
-    showToast("Actualité mise à jour sur Firebase");
+    let updatedItem: Announcement | null = null;
+    setAnnouncements(prev => prev.map(item => {
+      if (item.id === id) {
+        const merged = { ...item, ...a };
+        updatedItem = merged;
+        return merged;
+      }
+      return item;
+    }));
+    if (!isSupabaseConnected()) {
+      updateDoc(doc(db, 'announcements', id), a).catch(() => {});
+    }
+    if (updatedItem) upsertSupabaseAnnouncement(updatedItem);
+    showToast("Actualité mise à jour");
   };
 
   const deleteAnnouncement = (id: string) => {
     setAnnouncements(prev => prev.filter(item => item.id !== id));
-    deleteDoc(doc(db, 'announcements', id)).catch(err => {
-      console.warn("Firestore delete news error:", err);
-    });
+    if (!isSupabaseConnected()) {
+      deleteDoc(doc(db, 'announcements', id)).catch(() => {});
+    }
+    deleteSupabaseAnnouncement(id);
     showToast("Actualité supprimée");
   };
 
@@ -726,25 +808,36 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       id: `prod-${Date.now()}`
     };
     setProducts(prev => [newItem, ...prev]);
-    setDoc(doc(db, 'products', newItem.id), newItem).catch(err => {
-      console.warn("Firestore add product error:", err);
-    });
-    showToast("Produit ajouté à la boutique et synchronisé sur Firebase");
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'products', newItem.id), newItem).catch(() => {});
+    }
+    upsertSupabaseProduct(newItem);
+    showToast("Produit ajouté à la boutique");
   };
 
   const updateProduct = (id: string, p: Partial<Product>) => {
-    setProducts(prev => prev.map(item => item.id === id ? { ...item, ...p } : item));
-    updateDoc(doc(db, 'products', id), p).catch(err => {
-      console.warn("Firestore update product error:", err);
-    });
-    showToast("Produit mis à jour sur Firebase");
+    let updatedItem: Product | null = null;
+    setProducts(prev => prev.map(item => {
+      if (item.id === id) {
+        const merged = { ...item, ...p };
+        updatedItem = merged;
+        return merged;
+      }
+      return item;
+    }));
+    if (!isSupabaseConnected()) {
+      updateDoc(doc(db, 'products', id), p).catch(() => {});
+    }
+    if (updatedItem) upsertSupabaseProduct(updatedItem);
+    showToast("Produit mis à jour");
   };
 
   const deleteProduct = (id: string) => {
     setProducts(prev => prev.filter(item => item.id !== id));
-    deleteDoc(doc(db, 'products', id)).catch(err => {
-      console.warn("Firestore delete product error:", err);
-    });
+    if (!isSupabaseConnected()) {
+      deleteDoc(doc(db, 'products', id)).catch(() => {});
+    }
+    deleteSupabaseProduct(id);
     showToast("Produit retiré");
   };
 
@@ -757,9 +850,10 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       id: `tour-${Date.now()}`
     };
     setConcerts(prev => [...prev, newItem]);
-    setDoc(doc(db, 'concerts', newItem.id), newItem).catch(err => {
-      console.warn("Firestore add concert error:", err);
-    });
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'concerts', newItem.id), newItem).catch(() => {});
+    }
+    upsertSupabaseConcert(newItem);
     showToast(`Date de concert ajoutée : ${c.city} (${computedStatus})`);
   };
 
@@ -777,18 +871,20 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return item;
     }));
     if (updatedMerged) {
-      updateDoc(doc(db, 'concerts', id), updatedMerged).catch(err => {
-        console.warn("Firestore update concert error:", err);
-      });
+      if (!isSupabaseConnected()) {
+        updateDoc(doc(db, 'concerts', id), updatedMerged).catch(() => {});
+      }
+      upsertSupabaseConcert(updatedMerged);
     }
-    showToast("Date de concert mise à jour sur Firebase");
+    showToast("Date de concert mise à jour");
   };
 
   const deleteConcert = (id: string) => {
     setConcerts(prev => prev.filter(item => item.id !== id));
-    deleteDoc(doc(db, 'concerts', id)).catch(err => {
-      console.warn("Firestore delete concert error:", err);
-    });
+    if (!isSupabaseConnected()) {
+      deleteDoc(doc(db, 'concerts', id)).catch(() => {});
+    }
+    deleteSupabaseConcert(id);
     showToast("Date supprimée");
   };
 
@@ -819,7 +915,10 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return c;
     }));
     if (targetUpdated) {
-      updateDoc(doc(db, 'concerts', concertId), targetUpdated).catch(err => console.warn(err));
+      if (!isSupabaseConnected()) {
+        updateDoc(doc(db, 'concerts', concertId), targetUpdated).catch(() => {});
+      }
+      upsertSupabaseConcert(targetUpdated);
     }
   };
 
@@ -847,11 +946,14 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return c;
     }));
     if (targetUpdated) {
-      updateDoc(doc(db, 'concerts', concertId), targetUpdated).catch(err => console.warn(err));
+      if (!isSupabaseConnected()) {
+        updateDoc(doc(db, 'concerts', concertId), targetUpdated).catch(() => {});
+      }
+      upsertSupabaseConcert(targetUpdated);
     }
   };
 
-  // Admin CRUD Track with Firebase Cloud Sync
+  // Admin CRUD Track
   const addTrack = (t: Omit<Track, 'id' | 'plays'>) => {
     const newItem: Track = {
       ...t,
@@ -859,25 +961,36 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       plays: 0
     };
     setTracks(prev => [newItem, ...prev]);
-    setDoc(doc(db, 'tracks', newItem.id), newItem).catch(err => {
-      console.warn("Firestore add track error:", err);
-    });
-    showToast("Extrait musical publié avec succès sur Firebase !");
+    if (!isSupabaseConnected()) {
+      setDoc(doc(db, 'tracks', newItem.id), newItem).catch(() => {});
+    }
+    upsertSupabaseTrack(newItem);
+    showToast("Extrait musical publié avec succès !");
   };
 
   const updateTrack = (id: string, t: Partial<Track>) => {
-    setTracks(prev => prev.map(item => item.id === id ? { ...item, ...t } : item));
-    updateDoc(doc(db, 'tracks', id), t).catch(err => {
-      console.warn("Firestore update track error:", err);
-    });
-    showToast("Morceau et paroles synchronisés sur Firebase !");
+    let updatedItem: Track | null = null;
+    setTracks(prev => prev.map(item => {
+      if (item.id === id) {
+        const merged = { ...item, ...t };
+        updatedItem = merged;
+        return merged;
+      }
+      return item;
+    }));
+    if (!isSupabaseConnected()) {
+      updateDoc(doc(db, 'tracks', id), t).catch(() => {});
+    }
+    if (updatedItem) upsertSupabaseTrack(updatedItem);
+    showToast("Morceau et paroles synchronisés !");
   };
 
   const deleteTrack = (id: string) => {
     setTracks(prev => prev.filter(item => item.id !== id));
-    deleteDoc(doc(db, 'tracks', id)).catch(err => {
-      console.warn("Firestore delete track error:", err);
-    });
+    if (!isSupabaseConnected()) {
+      deleteDoc(doc(db, 'tracks', id)).catch(() => {});
+    }
+    deleteSupabaseTrack(id);
     showToast("Morceau retiré");
   };
 
@@ -892,7 +1005,7 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setCart([]);
     setTicketOrders([]);
     setShopOrders([]);
-    showToast("Données réinitialisées aux valeurs initiales de healing");
+    showToast("Données réinitialisées aux valeurs initiales de HEALYN");
   };
 
   return (

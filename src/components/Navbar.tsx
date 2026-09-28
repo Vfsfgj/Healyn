@@ -78,7 +78,7 @@ export const Navbar: React.FC = () => {
     setMobileMenuOpen(false);
   };
 
-  const displayName = (profile.stageName || 'HEALING').toUpperCase();
+  const displayName = (profile.stageName || 'HEALYN').toUpperCase();
 
   return (
     <>
