@@ -55,6 +55,8 @@ class HDWebAudioEngine {
     if (!this.audioElement) {
       this.audioElement = new Audio();
       this.audioElement.crossOrigin = 'anonymous';
+      this.audioElement.preload = 'auto';
+      (this.audioElement as any).playsInline = true;
 
       const updateDuration = () => {
         if (!this.audioElement) return;
@@ -79,9 +81,96 @@ class HDWebAudioEngine {
       this.audioElement.addEventListener('ended', () => {
         this.isCurrentlyPlaying = false;
         this.currentTrackTime = this.currentTrackDuration;
+        if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+          try { navigator.mediaSession.playbackState = 'none'; } catch {}
+        }
         this.notifyTimeUpdate();
         this.notifyEnded();
       });
+
+      // System MediaSession Action Handlers for background & lock screen controls
+      if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+        try {
+          navigator.mediaSession.setActionHandler('play', () => {
+            if (this.audioElement && this.currentAudioUrl) {
+              this.audioElement.play().catch(() => {});
+              this.isCurrentlyPlaying = true;
+              navigator.mediaSession.playbackState = 'playing';
+            }
+          });
+          navigator.mediaSession.setActionHandler('pause', () => {
+            this.pause();
+          });
+          navigator.mediaSession.setActionHandler('seekto', (details) => {
+            if (details.seekTime !== undefined && details.seekTime !== null) {
+              this.seek(details.seekTime);
+            }
+          });
+          navigator.mediaSession.setActionHandler('previoustrack', () => {
+            if (this.onPreviousTrackCallback) {
+              this.onPreviousTrackCallback();
+            } else {
+              this.seek(0);
+            }
+          });
+          navigator.mediaSession.setActionHandler('nexttrack', () => {
+            if (this.onNextTrackCallback) {
+              this.onNextTrackCallback();
+            }
+          });
+        } catch {}
+      }
+    }
+  }
+
+  private onNextTrackCallback: (() => void) | null = null;
+  private onPreviousTrackCallback: (() => void) | null = null;
+
+  public setMediaNavCallbacks(onNext?: () => void, onPrevious?: () => void) {
+    this.onNextTrackCallback = onNext || null;
+    this.onPreviousTrackCallback = onPrevious || null;
+  }
+
+  private toAbsoluteUrl(url?: string): string {
+    if (!url) return '';
+    if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+      return url;
+    }
+    try {
+      if (typeof window !== 'undefined') {
+        return new URL(url, window.location.href).href;
+      }
+      return url;
+    } catch {
+      return url;
+    }
+  }
+
+  public updateMediaSession(meta?: { title?: string; artist?: string; coverUrl?: string; album?: string }) {
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        if (meta) {
+          const absoluteCover = this.toAbsoluteUrl(meta.coverUrl);
+          const artwork: MediaImage[] = absoluteCover ? [
+            { src: absoluteCover, sizes: '96x96', type: 'image/jpeg' },
+            { src: absoluteCover, sizes: '128x128', type: 'image/jpeg' },
+            { src: absoluteCover, sizes: '192x192', type: 'image/jpeg' },
+            { src: absoluteCover, sizes: '256x256', type: 'image/jpeg' },
+            { src: absoluteCover, sizes: '384x384', type: 'image/jpeg' },
+            { src: absoluteCover, sizes: '512x512', type: 'image/jpeg' }
+          ] : [];
+
+          navigator.mediaSession.metadata = new MediaMetadata({
+            title: meta.title || 'HEALYN',
+            artist: meta.artist || 'HEALYN',
+            album: meta.album || 'Studio Officiel · HEALYN',
+            artwork
+          });
+        }
+        navigator.mediaSession.playbackState = this.isCurrentlyPlaying ? 'playing' : 'paused';
+      } catch (err) {
+        console.warn('MediaSession metadata error:', err);
+      }
     }
   }
 
@@ -90,12 +179,29 @@ class HDWebAudioEngine {
   }
 
   public getByteFrequencyData(): Uint8Array {
-    if (!this.analyser) {
+    if (!this.isCurrentlyPlaying) {
       return new Uint8Array(32);
     }
-    const data = new Uint8Array(this.analyser.frequencyBinCount);
-    this.analyser.getByteFrequencyData(data);
-    return data;
+    if (this.currentAudioUrl && this.audioElement) {
+      // Dynamic rhythmic pulse for 3D visualizer based on real audio playback time
+      const cur = this.audioElement.currentTime;
+      const data = new Uint8Array(32);
+      const bassBeat = Math.pow(Math.max(0, Math.sin(cur * Math.PI * 2 * 2)), 3); // ~120 bpm rhythm
+      for (let i = 0; i < 32; i++) {
+        const wave = Math.sin(cur * (3.5 + i * 0.7) + i * 0.4) * 0.5 + 0.5;
+        const harmonic = Math.sin(cur * 1.8 + i * 0.25) * 0.5 + 0.5;
+        const freqWeight = Math.max(0.2, 1 - (i / 32) * 0.55);
+        const val = Math.floor((wave * 0.55 + harmonic * 0.45 + (i < 6 ? bassBeat * 0.6 : 0)) * freqWeight * 255 * this.volumeLevel);
+        data[i] = Math.min(255, Math.max(0, val));
+      }
+      return data;
+    }
+    if (this.analyser) {
+      const data = new Uint8Array(this.analyser.frequencyBinCount);
+      this.analyser.getByteFrequencyData(data);
+      return data;
+    }
+    return new Uint8Array(32);
   }
 
   public setVolume(val: number) {
@@ -136,6 +242,19 @@ class HDWebAudioEngine {
     this.timeUpdateListeners.forEach(cb => {
       try { cb(cur, dur); } catch (e) { console.error(e); }
     });
+
+    // Synchronize system lock screen progress bar / slider
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+      try {
+        if (dur > 0 && !isNaN(dur) && isFinite(dur) && cur >= 0 && cur <= dur) {
+          navigator.mediaSession.setPositionState({
+            duration: dur,
+            playbackRate: 1,
+            position: cur
+          });
+        }
+      } catch {}
+    }
   }
 
   private notifyEnded() {
@@ -161,10 +280,13 @@ class HDWebAudioEngine {
     this.notifyTimeUpdate();
   }
 
-  public play(preset: AudioPreset, audioUrl?: string, defaultDurationSec?: number, forceRestart: boolean = false) {
-    this.initContext();
-    if (!this.ctx || !this.masterGain) return;
-
+  public play(
+    preset: AudioPreset,
+    audioUrl?: string,
+    defaultDurationSec?: number,
+    forceRestart: boolean = false,
+    meta?: { title?: string; artist?: string; coverUrl?: string; album?: string }
+  ) {
     const isNewAudio = Boolean(audioUrl) && (audioUrl !== this.currentAudioUrl);
     const shouldResetTime = forceRestart || isNewAudio;
 
@@ -176,21 +298,13 @@ class HDWebAudioEngine {
       this.currentTrackDuration = defaultDurationSec;
     }
 
-    // Soft anti-pop attack ramp (8ms)
-    const now = this.ctx.currentTime;
-    this.masterGain.gain.cancelScheduledValues(now);
-    this.masterGain.gain.setValueAtTime(0.0001, now);
-    this.masterGain.gain.linearRampToValueAtTime(this.volumeLevel, now + 0.008);
+    // Update system lock screen & background MediaSession controls
+    this.updateMediaSession(meta);
 
     if (audioUrl) {
       try {
         this.setupAudioElement();
         if (this.audioElement) {
-          if (!this.audioSourceNode) {
-            this.audioSourceNode = this.ctx.createMediaElementSource(this.audioElement);
-            this.audioSourceNode.connect(this.masterGain);
-          }
-
           if (isNewAudio) {
             this.currentAudioUrl = audioUrl;
             this.audioElement.src = audioUrl;
@@ -236,6 +350,16 @@ class HDWebAudioEngine {
         console.warn('Failed to load custom audio element:', err);
       }
     }
+
+    // Otherwise synth playback via Web Audio API
+    this.initContext();
+    if (!this.ctx || !this.masterGain) return;
+
+    // Soft anti-pop attack ramp (8ms)
+    const now = this.ctx.currentTime;
+    this.masterGain.gain.cancelScheduledValues(now);
+    this.masterGain.gain.setValueAtTime(0.0001, now);
+    this.masterGain.gain.linearRampToValueAtTime(this.volumeLevel, now + 0.008);
 
     // Otherwise synth playback
     this.currentAudioUrl = null;
@@ -414,6 +538,12 @@ class HDWebAudioEngine {
 
   public stop(resetTime: boolean = false) {
     this.isCurrentlyPlaying = false;
+
+    if (typeof navigator !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        navigator.mediaSession.playbackState = 'paused';
+      } catch {}
+    }
 
     // Instant smooth anti-click micro-fade (5ms) on master gain
     if (this.ctx && this.masterGain) {

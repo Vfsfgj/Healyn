@@ -12,7 +12,9 @@ import {
   Sparkles,
   Layers,
   ArrowUpRight,
-  ShieldCheck
+  ShieldCheck,
+  Lock,
+  KeyRound
 } from 'lucide-react';
 import {
   getSupabaseCredentials,
@@ -25,6 +27,32 @@ import { useArtist } from '../context/ArtistContext';
 
 export const SupabasePanel: React.FC = () => {
   const { showToast, tracks, products, concerts, announcements, subscribers } = useArtist();
+
+  const [isUnlocked, setIsUnlocked] = useState<boolean>(() => {
+    return sessionStorage.getItem('supabase_admin_unlocked') === 'true';
+  });
+  const [passcode, setPasscode] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleUnlock = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (passcode.trim() === 'admin2026') {
+      setIsUnlocked(true);
+      sessionStorage.setItem('supabase_admin_unlocked', 'true');
+      setError(false);
+      showToast("Section Base Supabase déverrouillée avec succès !");
+    } else {
+      setError(true);
+      showToast("Code de sécurité incorrect.");
+    }
+  };
+
+  const handleLock = () => {
+    setIsUnlocked(false);
+    sessionStorage.removeItem('supabase_admin_unlocked');
+    setPasscode('');
+    showToast("Section Base Supabase verrouillée.");
+  };
 
   const [creds, setCreds] = useState(() => getSupabaseCredentials());
   const [copiedSql, setCopiedSql] = useState(false);
@@ -134,7 +162,7 @@ export const SupabasePanel: React.FC = () => {
           description: p.description,
           details: p.details || [],
           image_url: p.imageUrl,
-          variants: p.variants || []
+          variants: p.variants || null
         }));
         await client.from('products').upsert(mappedProducts);
       }
@@ -194,6 +222,64 @@ export const SupabasePanel: React.FC = () => {
 
   const isConnected = connectionStatus === 'success' || isSupabaseConnected();
 
+  if (!isUnlocked) {
+    return (
+      <div className="w-full max-w-md mx-auto py-12 px-4 animate-in fade-in zoom-in-95 duration-200">
+        <div className="bg-white rounded-3xl p-8 border border-neutral-200 shadow-xl space-y-6 text-center">
+          <div className="w-12 h-12 rounded-2xl bg-neutral-950 text-white flex items-center justify-center mx-auto shadow-md">
+            <Lock className="w-6 h-6" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h3 className="text-base font-bold uppercase tracking-wider font-mono-code text-neutral-950">
+              Accès Protégé
+            </h3>
+            <p className="text-xs text-neutral-500 font-mono-code">
+              Base Supabase (PostgreSQL)
+            </p>
+            <p className="text-xs text-neutral-600 leading-relaxed pt-1">
+              Veuillez saisir le code d'accès pour configurer et gérer la base de données.
+            </p>
+          </div>
+
+          <form onSubmit={handleUnlock} className="space-y-4 text-left">
+            <div>
+              <div className="relative">
+                <KeyRound className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input
+                  type="password"
+                  value={passcode}
+                  onChange={e => {
+                    setPasscode(e.target.value);
+                    if (error) setError(false);
+                  }}
+                  placeholder="Code d'accès..."
+                  className={`w-full pl-10 pr-4 py-3 rounded-xl border-0 text-sm font-mono-code bg-neutral-100 focus:bg-neutral-200/80 focus:outline-none focus:ring-0 transition-all ${
+                    error ? 'ring-2 ring-rose-500 bg-rose-50 text-rose-900' : 'text-neutral-950'
+                  }`}
+                  autoFocus
+                />
+              </div>
+              {error && (
+                <p className="text-xs text-rose-600 font-mono-code font-medium mt-2">
+                  Code incorrect. Veuillez réessayer.
+                </p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-neutral-950 text-white rounded-xl text-xs font-semibold uppercase tracking-wider hover:bg-neutral-800 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-[0.99]"
+            >
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Déverrouiller</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full space-y-8 animate-in fade-in duration-200">
       {/* Header Banner */}
@@ -215,6 +301,14 @@ export const SupabasePanel: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={handleLock}
+              title="Verrouiller cette section"
+              className="px-3 py-2 rounded-2xl bg-neutral-800/80 hover:bg-neutral-800 text-neutral-300 hover:text-white transition-colors text-xs font-mono-code flex items-center gap-1.5 border border-neutral-700 cursor-pointer"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Verrouiller</span>
+            </button>
             <div className={`px-4 py-2 rounded-2xl flex items-center gap-2.5 text-xs font-mono-code border ${
               isConnected
                 ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'

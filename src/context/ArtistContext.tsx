@@ -569,14 +569,73 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [tracks, activeTrack]);
 
+  // Audio completion listener
+  useEffect(() => {
+    const unsub = audioEngine.addEndedListener(() => {
+      setIsPlaying(false);
+    });
+    return unsub;
+  }, []);
+
+  // Screen Wake Lock API: Prevent screen from sleeping / locking while music is actively playing
+  useEffect(() => {
+    let wakeLock: any = null;
+
+    const acquireLock = async () => {
+      if (typeof navigator !== 'undefined' && 'wakeLock' in navigator && isPlaying && document.visibilityState === 'visible') {
+        try {
+          wakeLock = await (navigator as any).wakeLock.request('screen');
+        } catch {
+          // Can fail if low-battery mode is forced by the device
+        }
+      }
+    };
+
+    const releaseLock = async () => {
+      if (wakeLock) {
+        try {
+          await wakeLock.release();
+        } catch {}
+        wakeLock = null;
+      }
+    };
+
+    if (isPlaying) {
+      acquireLock();
+    } else {
+      releaseLock();
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && isPlaying) {
+        acquireLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseLock();
+    };
+  }, [isPlaying]);
+
   // Audio Controls
+  const defaultCover = profile.latestRelease?.coverImage || '/src/assets/images/album_vinyl_artwork_1790345759457.jpg';
+
   const playTrack = (track: Track, forceRestart: boolean = false) => {
     const isDifferentTrack = activeTrack?.id !== track.id;
     const durSec = track.durationSec || parseDurationToSec(track.duration);
     const sanitizedTrack = { ...track, durationSec: durSec };
     setActiveTrack(sanitizedTrack);
     setIsPlaying(true);
-    audioEngine.play(track.preset, track.audioUrl, durSec, forceRestart || isDifferentTrack);
+    const effectiveCover = track.coverUrl || defaultCover;
+    audioEngine.play(track.preset, track.audioUrl, durSec, forceRestart || isDifferentTrack, {
+      title: track.title,
+      artist: profile.stageName || 'HEALYN',
+      album: 'Studio Officiel · HEALYN',
+      coverUrl: effectiveCover
+    });
     showToast(`Lecture en HD : ${track.title} (${track.status})`);
   };
 
@@ -598,10 +657,34 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setIsPlaying(false);
     } else {
       const durSec = activeTrack.durationSec || parseDurationToSec(activeTrack.duration);
-      audioEngine.play(activeTrack.preset, activeTrack.audioUrl, durSec, false);
+      const effectiveCover = activeTrack.coverUrl || defaultCover;
+      audioEngine.play(activeTrack.preset, activeTrack.audioUrl, durSec, false, {
+        title: activeTrack.title,
+        artist: profile.stageName || 'HEALYN',
+        album: 'Studio Officiel · HEALYN',
+        coverUrl: effectiveCover
+      });
       setIsPlaying(true);
     }
   };
+
+  // Connect lock-screen and headphone next / previous track controls
+  useEffect(() => {
+    audioEngine.setMediaNavCallbacks(
+      () => {
+        if (tracks.length === 0) return;
+        const curIdx = activeTrack ? tracks.findIndex(t => t.id === activeTrack.id) : -1;
+        const next = tracks[(curIdx + 1) % tracks.length];
+        playTrack(next);
+      },
+      () => {
+        if (tracks.length === 0) return;
+        const curIdx = activeTrack ? tracks.findIndex(t => t.id === activeTrack.id) : 0;
+        const prev = tracks[(curIdx - 1 + tracks.length) % tracks.length];
+        playTrack(prev);
+      }
+    );
+  }, [tracks, activeTrack]);
 
   const stopAudio = () => {
     audioEngine.stop(true);

@@ -281,45 +281,6 @@ export const AdminDashboard: React.FC = () => {
     setProfileForm({ ...profile });
   }, [profile]);
 
-  const HERO_IMAGE_PRESETS = [
-    {
-      id: 'album-vinyl',
-      label: 'Vinyle Restoration (Artwork)',
-      tag: 'Pochette Album',
-      url: '/src/assets/images/album_vinyl_artwork_1790345759457.jpg'
-    },
-    {
-      id: 'artist-portrait',
-      label: 'Portrait Studio healing',
-      tag: 'Portrait Artiste',
-      url: '/src/assets/images/hero_artist_portrait_1790345746015.jpg'
-    },
-    {
-      id: 'concert-stage',
-      label: 'Atmosphère Concert Live 360°',
-      tag: 'Scénographie',
-      url: '/src/assets/images/concert_stage_atmosphere_1790345781544.jpg'
-    },
-    {
-      id: 'merch-hoodie',
-      label: 'Pièce Textile & Studio Merch',
-      tag: 'Boutique',
-      url: '/src/assets/images/product_merch_hoodie_1790345771258.jpg'
-    },
-    {
-      id: 'modular-synth',
-      label: 'Synthétiseur Analogique Vintage',
-      tag: 'Studio Sonore',
-      url: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?auto=format&fit=crop&w=1200&q=80'
-    },
-    {
-      id: 'audiophile-vinyl',
-      label: 'Platine Audiophile & Sillon',
-      tag: 'Haute Fidélité',
-      url: 'https://images.unsplash.com/photo-1539375665275-f9de415ef9ac?auto=format&fit=crop&w=1200&q=80'
-    }
-  ];
-
   const handleHeroImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -342,18 +303,6 @@ export const AdminDashboard: React.FC = () => {
         showToast("Erreur lors de la lecture du fichier image.");
       }
     }
-  };
-
-  const handleSelectPresetHeroImage = (imageUrl: string) => {
-    setProfileForm(prev => ({
-      ...prev,
-      heroImage: imageUrl,
-      latestRelease: {
-        ...prev.latestRelease,
-        coverImage: imageUrl
-      }
-    }));
-    showToast("Photo sélectionnée ! Pensez à enregistrer.");
   };
 
   if (!isAdminOpen) return null;
@@ -664,17 +613,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Supabase Status Button */}
-          <button
-            onClick={() => setActiveTab('supabase')}
-            title="Gérer la base de données Supabase"
-            className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 rounded-full text-[11px] font-mono-code text-emerald-900 transition-colors cursor-pointer"
-          >
-            <Database className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="font-semibold">Supabase</span>
-            <span className={`w-2 h-2 rounded-full ${isSupabaseConnected() ? 'bg-emerald-500 animate-pulse' : 'bg-neutral-400'}`} />
-          </button>
-
           <button
             onClick={handleLogout}
             title="Verrouiller la session d'administration"
@@ -682,18 +620,6 @@ export const AdminDashboard: React.FC = () => {
           >
             <LogOut className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Verrouiller</span>
-          </button>
-          <button
-            onClick={() => {
-              if (confirm("Réinitialiser toutes les données aux valeurs par défaut ?")) {
-                resetToDefaultData();
-              }
-            }}
-            title="Réinitialiser les données de démo"
-            className="text-xs text-neutral-500 hover:text-neutral-950 px-3 py-1.5 rounded-lg hover:bg-neutral-100 transition-colors flex items-center gap-1 cursor-pointer font-mono-code"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Reset Démo</span>
           </button>
 
           <button
@@ -2413,51 +2339,6 @@ export const AdminDashboard: React.FC = () => {
                             Reset
                           </button>
                         )}
-                      </div>
-                    </div>
-
-                    {/* Method 3: Presets Gallery */}
-                    <div className="space-y-2.5">
-                      <label className="text-xs font-semibold uppercase tracking-wider font-mono-code text-neutral-700 flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-neutral-500" />
-                        <span>3. Sélection rapide parmi les visuels du studio :</span>
-                      </label>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        {HERO_IMAGE_PRESETS.map(preset => {
-                          const isSelected = profileForm.heroImage === preset.url;
-                          return (
-                            <div
-                              key={preset.id}
-                              onClick={() => handleSelectPresetHeroImage(preset.url)}
-                              className={`relative rounded-xl overflow-hidden border p-2.5 bg-neutral-50 hover:bg-white cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'border-neutral-950 ring-2 ring-neutral-950/20 bg-white shadow-sm'
-                                  : 'border-neutral-200 hover:border-neutral-400'
-                              }`}
-                            >
-                              <div className="aspect-[4/3] rounded-lg overflow-hidden bg-neutral-100 mb-2 relative">
-                                <img
-                                  src={preset.url}
-                                  alt={preset.label}
-                                  className="w-full h-full object-cover"
-                                  referrerPolicy="no-referrer"
-                                />
-                                {isSelected && (
-                                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-neutral-950 text-white flex items-center justify-center shadow-md">
-                                    <Check className="w-3 h-3" />
-                                  </div>
-                                )}
-                              </div>
-                              <div className="text-[11px] font-bold text-neutral-900 truncate">
-                                {preset.label}
-                              </div>
-                              <div className="text-[10px] font-mono-code text-neutral-400">
-                                {preset.tag}
-                              </div>
-                            </div>
-                          );
-                        })}
                       </div>
                     </div>
 
