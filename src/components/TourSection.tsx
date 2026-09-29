@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useArtist } from '../context/ArtistContext';
 import { Concert, TicketTier, TicketOrder } from '../types';
+import { formatFCFA } from '../utils/formatters';
 import {
   Calendar,
   MapPin,
@@ -182,7 +183,7 @@ export const TourSection: React.FC = () => {
                       <div className="text-right md:hidden shrink-0">
                         <div className="text-[11px] font-mono-code text-neutral-400">À partir de</div>
                         <div className="text-base font-mono-code font-bold text-neutral-950 tabular-nums">
-                          {minPrice} €
+                          {formatFCFA(minPrice)}
                         </div>
                       </div>
                     </div>
@@ -191,10 +192,10 @@ export const TourSection: React.FC = () => {
                   {/* Status & Ticket Button */}
                   <div className="flex items-center justify-between md:justify-end gap-5 md:gap-6 pt-2 md:pt-0 shrink-0">
                     {/* Price on desktop - fixed column width for strict vertical alignment */}
-                    <div className="text-right hidden md:block w-28 shrink-0">
+                    <div className="text-right hidden md:block w-32 shrink-0">
                       <div className="text-xs font-mono-code text-neutral-400">À partir de</div>
                       <div className="text-sm font-mono-code font-bold text-neutral-950 tabular-nums">
-                        {minPrice} €
+                        {formatFCFA(minPrice)}
                       </div>
                     </div>
 
@@ -418,8 +419,8 @@ export const TourSection: React.FC = () => {
                                       <div className="text-[9px] sm:text-[10px] font-mono-code uppercase tracking-widest text-neutral-400 truncate">
                                         TARIF PLACE
                                       </div>
-                                      <div className="text-xl sm:text-2xl md:text-3xl font-display font-extrabold text-white font-mono-code tabular-nums mt-0.5">
-                                        {tier.price} <span className="text-xs sm:text-sm font-normal text-neutral-400">€</span>
+                                      <div className="text-lg sm:text-xl md:text-2xl font-display font-extrabold text-white font-mono-code tabular-nums mt-0.5">
+                                        {tier.price.toLocaleString('fr-FR')} <span className="text-[10px] sm:text-xs font-normal text-neutral-400">FCFA</span>
                                       </div>
                                     </div>
 
@@ -553,7 +554,7 @@ export const TourSection: React.FC = () => {
                                         <div className="flex items-center justify-between text-base font-bold text-neutral-950">
                                           <span>Total Billetterie :</span>
                                           <span className="font-mono-code tabular-nums text-xl">
-                                            {tier.price * ticketQuantity} €
+                                            {formatFCFA(tier.price * ticketQuantity)}
                                           </span>
                                         </div>
 
@@ -659,7 +660,7 @@ export const TourSection: React.FC = () => {
                         <div className="flex items-center justify-between text-base font-bold text-neutral-950">
                           <span>Total Billetterie :</span>
                           <span className="font-mono-code tabular-nums text-xl">
-                            {selectedTier ? selectedTier.price * ticketQuantity : 0} €
+                            {formatFCFA(selectedTier ? selectedTier.price * ticketQuantity : 0)}
                           </span>
                         </div>
 

@@ -42,6 +42,7 @@ import {
 import { AudioPreset, TrackStatus } from '../types';
 import { compressImageFile } from '../utils/imageCompressor';
 import { compressAudioFile, getAudioDurationFromFile } from '../utils/audioCompressor';
+import { formatFCFA } from '../utils/formatters';
 import { LyricsTranscriberModal } from './LyricsTranscriberModal';
 import { StudioSelect } from './StudioSelect';
 import { SupabasePanel } from './SupabasePanel';
@@ -137,7 +138,7 @@ export const AdminDashboard: React.FC = () => {
   const [shopSubTab, setShopSubTab] = useState<'add' | 'catalog' | 'orders'>('add');
   const [newProdTitle, setNewProdTitle] = useState('');
   const [newProdCategory, setNewProdCategory] = useState<'Vinyles & Disques' | 'Textiles & Merch' | 'Art & Sérigraphie' | 'Édition Collector'>('Vinyles & Disques');
-  const [newProdPrice, setNewProdPrice] = useState(39);
+  const [newProdPrice, setNewProdPrice] = useState(25000);
   const [newProdStock, setNewProdStock] = useState(50);
   const [newProdDesc, setNewProdDesc] = useState('');
   const [newProdImage, setNewProdImage] = useState('/src/assets/images/album_vinyl_artwork_1790345759457.jpg');
@@ -148,7 +149,7 @@ export const AdminDashboard: React.FC = () => {
   const [newConcertVenue, setNewConcertVenue] = useState('');
   const [newConcertCountry, setNewConcertCountry] = useState('France');
   const [newConcertDate, setNewConcertDate] = useState('2027-03-20');
-  const [newConcertPrice, setNewConcertPrice] = useState(38);
+  const [newConcertPrice, setNewConcertPrice] = useState(25000);
   const [newConcertTickets, setNewConcertTickets] = useState(100);
 
   // Ticket stock increase confirmation modal for already published dates
@@ -1447,7 +1448,7 @@ export const AdminDashboard: React.FC = () => {
 
                           <div>
                             <label className="text-xs font-semibold uppercase tracking-wider font-mono-code text-neutral-700 block mb-2">
-                              Prix (€) :
+                              Prix (FCFA) :
                             </label>
                             <input
                               type="number"
@@ -1645,7 +1646,7 @@ export const AdminDashboard: React.FC = () => {
                             <div className="min-w-0">
                               <div className="text-sm font-bold text-neutral-950 truncate">{p.title}</div>
                               <div className="text-xs font-mono-code text-neutral-400 mt-1">
-                                {p.category} · <span className="font-semibold text-neutral-900">{p.price} €</span>
+                                {p.category} · <span className="font-semibold text-neutral-900">{formatFCFA(p.price)}</span>
                               </div>
                             </div>
                           </div>
@@ -1710,7 +1711,7 @@ export const AdminDashboard: React.FC = () => {
                         <div key={order.id} className="p-4 sm:p-5 flex items-center justify-between hover:bg-neutral-50 transition-colors">
                           <div>
                             <div className="font-bold font-mono-code text-neutral-950 text-sm">
-                              {order.orderNumber} — {order.total} €
+                              {order.orderNumber} — {formatFCFA(order.total)}
                             </div>
                             <div className="text-neutral-500 text-xs mt-0.5">
                               {order.customerName} ({order.customerEmail}) · {order.city}
@@ -1859,7 +1860,7 @@ export const AdminDashboard: React.FC = () => {
 
                       <div className="sm:col-span-1 lg:col-span-4">
                         <label className="text-xs font-semibold uppercase tracking-wider font-mono-code text-neutral-700 block mb-2">
-                          Tarif de départ (€) :
+                          Tarif de départ (FCFA) :
                         </label>
                         <input
                           type="number"
@@ -2107,7 +2108,7 @@ export const AdminDashboard: React.FC = () => {
                             </div>
                           </div>
                           <div className="text-right font-mono-code font-bold text-neutral-950 text-sm">
-                            {t.totalPrice} €
+                            {formatFCFA(t.totalPrice)}
                           </div>
                         </div>
                       ))}

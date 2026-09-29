@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useArtist } from '../context/ArtistContext';
 import { Product } from '../types';
 import { CartDrawer } from './CartDrawer';
+import { formatFCFA } from '../utils/formatters';
 import {
   ShoppingBag,
   Check,
@@ -200,7 +201,7 @@ export const ShopSection: React.FC = () => {
                   {/* Price & Action */}
                   <div className="pt-2 sm:pt-3 border-t border-neutral-100 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2">
                     <div className="text-xs sm:text-lg font-mono-code font-bold text-neutral-950 tabular-nums">
-                      {product.price} €
+                      {formatFCFA(product.price)}
                     </div>
 
                     <div className="flex items-center gap-1 sm:gap-2 w-full xs:w-auto justify-between xs:justify-end">
@@ -332,7 +333,7 @@ export const ShopSection: React.FC = () => {
                       {selectedProductForModal.title}
                     </h1>
                     <div className="text-2xl sm:text-3xl font-mono-code font-bold text-neutral-950 tabular-nums pt-1">
-                      {selectedProductForModal.price} €
+                      {formatFCFA(selectedProductForModal.price)}
                       <span className="text-xs font-normal text-neutral-500 font-sans ml-2">TVA incluse</span>
                     </div>
                   </div>
@@ -406,7 +407,7 @@ export const ShopSection: React.FC = () => {
                       <ShoppingBag className="w-4 h-4" />
                       <span>
                         {selectedProductForModal.stock > 0
-                          ? `Commander Directement — ${(selectedProductForModal.price * quantity).toFixed(2)} €`
+                          ? `Commander Directement — ${formatFCFA(selectedProductForModal.price * quantity)}`
                           : 'Article Épuisé'}
                       </span>
                     </button>
