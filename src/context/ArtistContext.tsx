@@ -86,6 +86,8 @@ export function parseDurationToSec(durStr?: string): number {
 interface ArtistContextType {
   currentPage: AppPage;
   setCurrentPage: (page: AppPage) => void;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   profile: ArtistProfile;
   setProfile: (p: ArtistProfile) => void;
   tracks: Track[];
@@ -227,6 +229,7 @@ function getPageFromHash(): AppPage {
 
 export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentPage, setCurrentPageState] = useState<AppPage>(() => getPageFromHash());
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Entity States initialized with cache/fallback
   const [profile, setProfileState] = useState<ArtistProfile>(() => {
@@ -555,6 +558,7 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   // Page URL Hash Sync
   const setCurrentPage = (page: AppPage) => {
     setCurrentPageState(page);
+    setSearchQuery('');
     const targetHash = page === 'accueil' ? '' : `#${page}`;
     if (window.location.hash !== targetHash) {
       if (page === 'accueil') {
@@ -1294,6 +1298,8 @@ export const ArtistProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       value={{
         currentPage,
         setCurrentPage,
+        searchQuery,
+        setSearchQuery,
         profile,
         setProfile,
         tracks,

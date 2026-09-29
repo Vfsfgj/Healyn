@@ -7,7 +7,8 @@ import {
   Menu,
   X,
   Play,
-  Pause
+  Pause,
+  Search
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -19,12 +20,41 @@ export const Navbar: React.FC = () => {
     togglePlayPause,
     activeTrack,
     currentPage,
-    setCurrentPage
+    setCurrentPage,
+    searchQuery,
+    setSearchQuery
   } = useArtist();
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isVisible, setIsVisible] = useState(true);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const lastScrollYRef = useRef(0);
+  const mobileSearchRef = useRef<HTMLDivElement>(null);
+  const mobileInputRef = useRef<HTMLInputElement>(null);
+
+  // Close expanded search when navigating pages
+  useEffect(() => {
+    setIsSearchExpanded(false);
+  }, [currentPage]);
+
+  // Handle click outside to collapse search if empty
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      if (mobileSearchRef.current && !mobileSearchRef.current.contains(e.target as Node)) {
+        if (!searchQuery) {
+          setIsSearchExpanded(false);
+        }
+      }
+    };
+    if (isSearchExpanded) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isSearchExpanded, searchQuery]);
 
   // Prevent background body scroll when mobile menu is open without breaking touch scroll inside overlay
   useEffect(() => {
@@ -156,12 +186,12 @@ export const Navbar: React.FC = () => {
               </button>
             )}
 
-            {/* Cart Trigger (On mobile, only visible when in boutique section) */}
+            {/* Cart Trigger (On mobile, only visible when in boutique section and search is not expanded) */}
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="Ouvrir le panier"
               className={`${
-                currentPage === 'boutique' ? 'flex' : 'hidden sm:flex'
+                currentPage === 'boutique' && !isSearchExpanded ? 'flex' : 'hidden sm:flex'
               } items-center gap-2 px-3.5 py-1.5 rounded-full border border-neutral-200 hover:border-neutral-950 text-neutral-900 transition-colors text-xs font-semibold cursor-pointer`}
             >
               <ShoppingBag className="w-4 h-4" />
@@ -171,14 +201,75 @@ export const Navbar: React.FC = () => {
               </span>
             </button>
 
-            {/* Mobile Menu Toggle Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
-              className="md:hidden p-2 text-neutral-900 hover:text-neutral-950 cursor-pointer rounded-lg hover:bg-neutral-100 transition-colors"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            {/* Mobile Search - Loupe de recherche qui s'agrandit au clic */}
+            {['musique', 'boutique', 'concerts', 'actualites'].includes(currentPage) && (
+              <div ref={mobileSearchRef} className="md:hidden flex items-center">
+                <AnimatePresence initial={false}>
+                  {isSearchExpanded ? (
+                    <motion.div
+                      key="search-input"
+                      initial={{ width: 36, opacity: 0 }}
+                      animate={{ width: 'auto', opacity: 1 }}
+                      exit={{ width: 36, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: 'easeOut' }}
+                      className="flex items-center relative bg-neutral-100 border border-transparent focus-within:border-neutral-950 focus-within:bg-white rounded-full px-3 py-1.5 w-56 xs:w-64 sm:w-72 transition-colors"
+                    >
+                      <Search className="w-3.5 h-3.5 text-neutral-500 shrink-0 mr-1.5 pointer-events-none" />
+                      <input
+                        ref={mobileInputRef}
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Rechercher..."
+                        className="w-full bg-transparent text-xs text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => {
+                          if (searchQuery) {
+                            setSearchQuery('');
+                          } else {
+                            setIsSearchExpanded(false);
+                          }
+                        }}
+                        className="p-0.5 text-neutral-400 hover:text-neutral-900 cursor-pointer shrink-0 ml-1"
+                        title={searchQuery ? "Effacer" : "Fermer"}
+                        aria-label="Fermer la recherche"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.button
+                      key="search-button"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={() => {
+                        setIsSearchExpanded(true);
+                        setTimeout(() => mobileInputRef.current?.focus(), 80);
+                      }}
+                      aria-label="Ouvrir la recherche"
+                      title="Rechercher"
+                      className="p-2 text-neutral-800 hover:text-neutral-950 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer shrink-0"
+                    >
+                      <Search className="w-5 h-5" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
+
+            {/* Mobile Menu Toggle Button (Caché lorsque la recherche est agrandie) */}
+            {!isSearchExpanded && (
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? "Fermer le menu" : "Ouvrir le menu"}
+                className="md:hidden p-2 text-neutral-900 hover:text-neutral-950 cursor-pointer rounded-lg hover:bg-neutral-100 transition-colors shrink-0"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            )}
           </div>
         </div>
       </header>

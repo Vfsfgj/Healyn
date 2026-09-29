@@ -13,7 +13,9 @@ import {
   Check,
   Headphones,
   Sparkles,
-  Maximize2
+  Maximize2,
+  Search,
+  X
 } from 'lucide-react';
 
 export const MusicSection: React.FC = () => {
@@ -27,7 +29,9 @@ export const MusicSection: React.FC = () => {
     togglePlayPause,
     toggleFavoriteTrack,
     showToast,
-    setCurrentPage
+    setCurrentPage,
+    searchQuery,
+    setSearchQuery
   } = useArtist();
 
   const [filter, setFilter] = useState<string>('all');
@@ -42,8 +46,16 @@ export const MusicSection: React.FC = () => {
   ];
 
   const filteredTracks = tracks.filter(t => {
-    if (filter === 'all') return true;
-    return t.status === filter;
+    const matchesFilter = filter === 'all' || t.status === filter;
+    if (!searchQuery.trim()) return matchesFilter;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      t.title.toLowerCase().includes(q) ||
+      (t.description && t.description.toLowerCase().includes(q)) ||
+      (t.key && t.key.toLowerCase().includes(q)) ||
+      (t.bpm && t.bpm.toString().includes(q)) ||
+      (t.status && t.status.toLowerCase().includes(q));
+    return matchesFilter && matchesSearch;
   });
 
   const handleShareTrack = (track: Track) => {
@@ -66,16 +78,39 @@ export const MusicSection: React.FC = () => {
     <section id="musique" className="py-12 sm:py-16 bg-neutral-50/50 min-h-[80vh]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Page Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-xs font-mono-code text-neutral-500">
-          <button
-            onClick={() => setCurrentPage('accueil')}
-            className="hover:text-neutral-950 transition-colors cursor-pointer"
-          >
-            Accueil
-          </button>
-          <span>/</span>
-          <span className="text-neutral-950 font-bold uppercase">Musique &amp; Discographie</span>
+        {/* Page Breadcrumb & Desktop Search Bar */}
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs font-mono-code text-neutral-500">
+            <button
+              onClick={() => setCurrentPage('accueil')}
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
+            >
+              Accueil
+            </button>
+            <span>/</span>
+            <span className="text-neutral-950 font-bold uppercase">Musique &amp; Discographie</span>
+          </div>
+
+          {/* Desktop Search Bar (alignée avec le fil d'Ariane) */}
+          <div className="hidden md:flex items-center relative w-72 lg:w-80">
+            <Search className="w-4 h-4 text-neutral-400 absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher un titre, BPM, clé..."
+              className="w-full pl-9 pr-8 py-1.5 bg-neutral-100 border border-transparent rounded-full text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:bg-white focus:border-neutral-950 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 p-0.5 text-neutral-400 hover:text-neutral-900 cursor-pointer rounded-full"
+                title="Effacer la recherche"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         
         {/* Section Header */}
@@ -90,7 +125,7 @@ export const MusicSection: React.FC = () => {
           </div>
 
           {/* Interactive filter tabs (clean segmented controls) */}
-          <div className="flex items-center gap-1 p-1 bg-neutral-200/60 rounded-xl overflow-x-auto">
+          <div className="flex items-center gap-1 p-1 bg-neutral-100 rounded-xl overflow-x-auto">
             {filterOptions.map(opt => (
               <button
                 key={opt.value}
@@ -286,10 +321,24 @@ export const MusicSection: React.FC = () => {
             );
           })
           ) : (
-            <div className="py-12 px-6 bg-white rounded-2xl text-center space-y-2 border border-neutral-100">
+            <div className="py-12 px-6 bg-white rounded-2xl text-center space-y-3 border border-neutral-100">
               <Disc3 className="w-8 h-8 text-neutral-300 mx-auto" />
-              <p className="text-sm font-semibold text-neutral-800">Aucun morceau disponible pour le moment</p>
-              <p className="text-xs text-neutral-500 font-mono-code">Ajoutez vos propres créations audio depuis votre Espace Admin.</p>
+              <p className="text-sm font-semibold text-neutral-800">
+                {searchQuery ? `Aucun morceau ne correspond à "${searchQuery}"` : "Aucun morceau disponible pour le moment"}
+              </p>
+              {searchQuery ? (
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setFilter('all');
+                  }}
+                  className="px-4 py-1.5 text-xs font-mono-code font-semibold uppercase bg-neutral-950 text-white rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+                >
+                  Effacer la recherche
+                </button>
+              ) : (
+                <p className="text-xs text-neutral-500 font-mono-code">Ajoutez vos propres créations audio depuis votre Espace Admin.</p>
+              )}
             </div>
           )}
         </div>

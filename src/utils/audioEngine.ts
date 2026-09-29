@@ -279,6 +279,17 @@ class HDWebAudioEngine {
     this.notifyTimeUpdate();
   }
 
+  public preload(url?: string) {
+    if (!url) return;
+    try {
+      this.setupAudioElement();
+      if (this.audioElement && this.currentAudioUrl !== url) {
+        this.currentAudioUrl = url;
+        this.audioElement.src = url;
+      }
+    } catch {}
+  }
+
   public play(
     preset: AudioPreset,
     audioUrl?: string,
@@ -307,11 +318,9 @@ class HDWebAudioEngine {
           if (isNewAudio) {
             this.currentAudioUrl = audioUrl;
             this.audioElement.src = audioUrl;
-            this.audioElement.currentTime = 0;
             this.currentTrackTime = 0;
-            this.audioElement.load();
           } else if (forceRestart) {
-            this.audioElement.currentTime = 0;
+            try { this.audioElement.currentTime = 0; } catch {}
             this.currentTrackTime = 0;
           } else {
             // Ensure audio element aligns with stored track time if sought while paused

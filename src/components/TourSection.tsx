@@ -12,7 +12,8 @@ import {
   QrCode,
   Download,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Search
 } from 'lucide-react';
 
 export const TourSection: React.FC = () => {
@@ -22,7 +23,9 @@ export const TourSection: React.FC = () => {
     selectedConcertForTicket,
     setSelectedConcertForTicket,
     bookTickets,
-    setCurrentPage
+    setCurrentPage,
+    searchQuery,
+    setSearchQuery
   } = useArtist();
 
   const [selectedTier, setSelectedTier] = useState<TicketTier | null>(null);
@@ -31,6 +34,19 @@ export const TourSection: React.FC = () => {
   const [buyerEmail, setBuyerEmail] = useState<string>('');
   const [bookedOrder, setBookedOrder] = useState<TicketOrder | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const filteredConcerts = concerts.filter(c => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      c.city.toLowerCase().includes(q) ||
+      c.country.toLowerCase().includes(q) ||
+      c.venue.toLowerCase().includes(q) ||
+      c.date.toLowerCase().includes(q) ||
+      (c.formattedDate && c.formattedDate.toLowerCase().includes(q)) ||
+      (c.status && c.status.toLowerCase().includes(q))
+    );
+  });
 
   const handleOpenBooking = (concert: Concert) => {
     setSelectedConcertForTicket(concert);
@@ -73,16 +89,39 @@ export const TourSection: React.FC = () => {
     <section id="concerts" className="py-12 sm:py-16 bg-neutral-50/50 min-h-[80vh]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Page Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-xs font-mono-code text-neutral-500">
-          <button
-            onClick={() => setCurrentPage('accueil')}
-            className="hover:text-neutral-950 transition-colors cursor-pointer"
-          >
-            Accueil
-          </button>
-          <span>/</span>
-          <span className="text-neutral-950 font-bold uppercase">Concerts &amp; Billetterie</span>
+        {/* Page Breadcrumb & Desktop Search Bar */}
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs font-mono-code text-neutral-500">
+            <button
+              onClick={() => setCurrentPage('accueil')}
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
+            >
+              Accueil
+            </button>
+            <span>/</span>
+            <span className="text-neutral-950 font-bold uppercase">Concerts &amp; Billetterie</span>
+          </div>
+
+          {/* Desktop Search Bar (alignée avec le fil d'Ariane) */}
+          <div className="hidden md:flex items-center relative w-72 lg:w-80">
+            <Search className="w-4 h-4 text-neutral-400 absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher une ville, salle, date..."
+              className="w-full pl-9 pr-8 py-1.5 bg-neutral-100 border border-transparent rounded-full text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:bg-white focus:border-neutral-950 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 p-0.5 text-neutral-400 hover:text-neutral-900 cursor-pointer rounded-full"
+                title="Effacer la recherche"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         
         {/* Section Header */}
@@ -105,7 +144,7 @@ export const TourSection: React.FC = () => {
 
         {/* Concerts List */}
         <div className="mt-8 bg-white -mx-4 sm:mx-0 sm:rounded-2xl overflow-hidden shadow-none">
-          {concerts.map((concert, index) => {
+          {filteredConcerts.map((concert, index) => {
             const isSoldOut = concert.status === 'Complet';
             const minPrice = Math.min(...concert.ticketTiers.map(t => t.price));
 
@@ -187,13 +226,30 @@ export const TourSection: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                {index < concerts.length - 1 && (
+                {index < filteredConcerts.length - 1 && (
                   <div className="mx-4 sm:mx-6 border-b border-neutral-200" />
                 )}
               </React.Fragment>
             );
           })}
         </div>
+
+        {/* Empty Search Result State */}
+        {filteredConcerts.length === 0 && (
+          <div className="py-16 text-center space-y-3 bg-white sm:rounded-2xl mt-8">
+            <p className="text-sm font-semibold text-neutral-800">
+              {searchQuery ? `Aucune date de concert trouvée pour "${searchQuery}"` : "Aucune date de concert disponible"}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-4 py-1.5 text-xs font-mono-code font-semibold uppercase bg-neutral-950 text-white rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Effacer la recherche
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Ticket Booking Full Screen Page */}
         {selectedConcertForTicket && (

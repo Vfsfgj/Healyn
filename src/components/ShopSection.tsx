@@ -13,7 +13,8 @@ import {
   Disc,
   Plus,
   Minus,
-  ArrowLeft
+  ArrowLeft,
+  Search
 } from 'lucide-react';
 
 export const ShopSection: React.FC = () => {
@@ -24,7 +25,9 @@ export const ShopSection: React.FC = () => {
     setSelectedProductForModal,
     cart,
     setIsCartOpen,
-    setCurrentPage
+    setCurrentPage,
+    searchQuery,
+    setSearchQuery
   } = useArtist();
 
   const [activeCategory, setActiveCategory] = useState<string>('all');
@@ -41,8 +44,14 @@ export const ShopSection: React.FC = () => {
   ];
 
   const filteredProducts = products.filter(p => {
-    if (activeCategory === 'all') return true;
-    return p.category === activeCategory;
+    const matchesCategory = activeCategory === 'all' || p.category === activeCategory;
+    if (!searchQuery.trim()) return matchesCategory;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch =
+      p.title.toLowerCase().includes(q) ||
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.category && p.category.toLowerCase().includes(q));
+    return matchesCategory && matchesSearch;
   });
 
   const handleOpenProduct = (product: Product) => {
@@ -60,16 +69,39 @@ export const ShopSection: React.FC = () => {
     <section id="boutique" className="py-12 sm:py-16 bg-white min-h-[80vh]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Page Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-xs font-mono-code text-neutral-500">
-          <button
-            onClick={() => setCurrentPage('accueil')}
-            className="hover:text-neutral-950 transition-colors cursor-pointer"
-          >
-            Accueil
-          </button>
-          <span>/</span>
-          <span className="text-neutral-950 font-bold uppercase">Boutique Officielle</span>
+        {/* Page Breadcrumb & Desktop Search Bar */}
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs font-mono-code text-neutral-500">
+            <button
+              onClick={() => setCurrentPage('accueil')}
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
+            >
+              Accueil
+            </button>
+            <span>/</span>
+            <span className="text-neutral-950 font-bold uppercase">Boutique Officielle</span>
+          </div>
+
+          {/* Desktop Search Bar (alignée avec le fil d'Ariane) */}
+          <div className="hidden md:flex items-center relative w-72 lg:w-80">
+            <Search className="w-4 h-4 text-neutral-400 absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher un vinyle, textile..."
+              className="w-full pl-9 pr-8 py-1.5 bg-neutral-100 border border-transparent rounded-full text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:bg-white focus:border-neutral-950 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 p-0.5 text-neutral-400 hover:text-neutral-900 cursor-pointer rounded-full"
+                title="Effacer la recherche"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         
         {/* Section Header */}
@@ -207,6 +239,26 @@ export const ShopSection: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Empty Search Result State */}
+        {filteredProducts.length === 0 && (
+          <div className="py-16 text-center space-y-3">
+            <p className="text-sm font-semibold text-neutral-800">
+              {searchQuery ? `Aucune création trouvée pour "${searchQuery}"` : "Aucun produit disponible dans cette catégorie"}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => {
+                  setSearchQuery('');
+                  setActiveCategory('all');
+                }}
+                className="px-4 py-1.5 text-xs font-mono-code font-semibold uppercase bg-neutral-950 text-white rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Effacer la recherche
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Full Article Page View Modal */}
         {selectedProductForModal && (

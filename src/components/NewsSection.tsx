@@ -10,7 +10,8 @@ import {
   X,
   ExternalLink,
   Check,
-  ArrowLeft
+  ArrowLeft,
+  Search
 } from 'lucide-react';
 
 export const NewsSection: React.FC = () => {
@@ -21,8 +22,22 @@ export const NewsSection: React.FC = () => {
     selectedAnnouncementForModal,
     setSelectedAnnouncementForModal,
     showToast,
-    setCurrentPage
+    setCurrentPage,
+    searchQuery,
+    setSearchQuery
   } = useArtist();
+
+  const filteredAnnouncements = announcements.filter(a => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      a.title.toLowerCase().includes(q) ||
+      (a.summary && a.summary.toLowerCase().includes(q)) ||
+      (a.content && a.content.toLowerCase().includes(q)) ||
+      (a.category && a.category.toLowerCase().includes(q)) ||
+      (a.date && a.date.toLowerCase().includes(q))
+    );
+  });
 
   const handleShareNews = (news: Announcement, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -49,16 +64,39 @@ export const NewsSection: React.FC = () => {
     <section id="actualites" className="py-12 sm:py-16 bg-white min-h-[80vh]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Page Breadcrumb */}
-        <div className="mb-6 flex items-center gap-2 text-xs font-mono-code text-neutral-500">
-          <button
-            onClick={() => setCurrentPage('accueil')}
-            className="hover:text-neutral-950 transition-colors cursor-pointer"
-          >
-            Accueil
-          </button>
-          <span>/</span>
-          <span className="text-neutral-950 font-bold uppercase">Actualités &amp; Journal</span>
+        {/* Page Breadcrumb & Desktop Search Bar */}
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-xs font-mono-code text-neutral-500">
+            <button
+              onClick={() => setCurrentPage('accueil')}
+              className="hover:text-neutral-950 transition-colors cursor-pointer"
+            >
+              Accueil
+            </button>
+            <span>/</span>
+            <span className="text-neutral-950 font-bold uppercase">Actualités &amp; Journal</span>
+          </div>
+
+          {/* Desktop Search Bar (alignée avec le fil d'Ariane) */}
+          <div className="hidden md:flex items-center relative w-72 lg:w-80">
+            <Search className="w-4 h-4 text-neutral-400 absolute left-3 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher un article, annonce..."
+              className="w-full pl-9 pr-8 py-1.5 bg-neutral-100 border border-transparent rounded-full text-xs font-medium text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:bg-white focus:border-neutral-950 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 p-0.5 text-neutral-400 hover:text-neutral-900 cursor-pointer rounded-full"
+                title="Effacer la recherche"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         
         {/* Section Header */}
@@ -79,7 +117,7 @@ export const NewsSection: React.FC = () => {
 
         {/* Announcements Grid - Full width edge-to-edge on mobile */}
         <div className="-mx-4 sm:mx-0 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 pt-8 sm:pt-10">
-          {announcements.map(item => (
+          {filteredAnnouncements.map(item => (
             <article
               key={item.id}
               onClick={() => setSelectedAnnouncementForModal(item)}
@@ -154,6 +192,23 @@ export const NewsSection: React.FC = () => {
             </article>
           ))}
         </div>
+
+        {/* Empty Search Result State */}
+        {filteredAnnouncements.length === 0 && (
+          <div className="py-16 text-center space-y-3">
+            <p className="text-sm font-semibold text-neutral-800">
+              {searchQuery ? `Aucune actualité trouvée pour "${searchQuery}"` : "Aucune actualité publiée pour le moment"}
+            </p>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-4 py-1.5 text-xs font-mono-code font-semibold uppercase bg-neutral-950 text-white rounded-full hover:bg-neutral-800 transition-colors cursor-pointer"
+              >
+                Effacer la recherche
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Reading Article Full Screen Page */}
         {selectedAnnouncementForModal && (
